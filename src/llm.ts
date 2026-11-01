@@ -20,7 +20,7 @@ async function getClient() {
   const url = process.env.OPENCODE_URL;
   const made = url
     ? { client: createOpencodeClient({ baseUrl: url }) as Client }
-    : await createOpencode({ config: {} }).then((r) => ({ client: r.client, close: r.server.close }));
+    : await createOpencode({ config: {}, port: 0, timeout: 30_000 }).then((r) => ({ client: r.client, close: r.server.close }));
   return (cached = made);
 }
 
@@ -78,7 +78,11 @@ export function judgePrompt({ diff, description, statement }: JudgeInput): strin
 
 export type Ask = (prompt: string, schema?: Record<string, unknown>) => Promise<unknown>;
 
-export async function judgeIntention(input: JudgeInput, run: Ask = ask): Promise<Verdict> {
+export async function judgeIntention(
+  input: JudgeInput,
+  run: Ask = ask,
+  onError: (e: unknown) => void = () => {},
+): Promise<Verdict> {
   // Empty input needs no model: it can never pass.
   if (!input.statement.trim()) {
     return { verdict: "retry", hint: "Write what you think this change does and why, in your own words." };
@@ -86,6 +90,7 @@ export async function judgeIntention(input: JudgeInput, run: Ask = ask): Promise
   try {
     return parseVerdict(await run(judgePrompt(input), VERDICT_SCHEMA), input.description);
   } catch (e) {
+    onError(e);
     // Fail closed, and surface only our own text — never raw model/transport output.
     return { verdict: "retry", hint: `Judge unavailable (${(e as Error).name}). Try again.` };
   }

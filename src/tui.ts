@@ -1,4 +1,5 @@
 import { spawnSync } from "node:child_process";
+import { appendFile } from "node:fs/promises";
 import { BoxRenderable, InputRenderable, InputRenderableEvents, TextRenderable, createCliRenderer } from "@opentui/core";
 import { CHECKLIST } from "./checklist";
 import { reviewGates } from "./gates";
@@ -83,7 +84,11 @@ export async function runTui(store: Store, opts: { post: boolean }) {
     if (busy || !value.trim()) return;
     if (state.page === 1 && !intentionLocked()) {
       busy = true; state.intention.text = value.trim(); input.value = ""; await draw();
-      const v = await judgeIntention({ diff: store.diff, description: state.pr.body, statement: state.intention.text });
+      const v = await judgeIntention(
+        { diff: store.diff, description: state.pr.body, statement: state.intention.text },
+        undefined,
+        (e) => void appendFile(`${store.dir}/errors.log`, `${new Date().toISOString()} judge: ${String((e as Error)?.stack ?? e)}\n`),
+      );
       busy = false;
       if (v.verdict === "pass") {
         state.intention.status = "passed";

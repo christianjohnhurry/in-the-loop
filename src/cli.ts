@@ -12,5 +12,6 @@ if (!url) {
 }
 import { closeLlm } from "./llm";
 process.on("exit", closeLlm);
+for (const sig of ["SIGTERM", "SIGHUP", "SIGINT"] as const) process.on(sig, () => process.exit(130));
 const store = await openStore(process.env.REVIEW_ROOT ?? resolve(process.cwd()), url);
 await runTui(store, { post });
