@@ -20,3 +20,4 @@ bun src/cli.ts https://github.com/<owner>/<repo>/pull/<n> --post   # really post
 - `$REVIEWER` (default: your `gh` login) and `$MODEL` (default `opencode-default`) form the `[$REVIEWER + $MODEL]` prefix.
 - LLM calls go through a local OpenCode server using the read-only agent in `.opencode/agents/review-judge.md`. Set `OPENCODE_URL` to use an existing server instead of spawning one (the `opencode` binary must be on `PATH` otherwise).
 - `bun test` for unit tests; `bun run eval:judge` runs the five canned judge cases against a live model.
+- Version: `bun src/cli.ts --version`. User-visible changes are recorded in `CHANGELOG.md`.
