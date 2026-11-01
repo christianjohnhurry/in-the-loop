@@ -1,0 +1,32 @@
+{
+  "name": "review-tui",
+  "version": "0.1.0",
+  "module": "src/cli.ts",
+  "type": "module",
+  "private": true,
+  "bin": {
+    "review-tui": "src/cli.ts"
+  },
+  "scripts": {
+    "start": "bun src/cli.ts",
+    "test": "bun test",
+    "eval:judge": "bun scripts/eval-judge.ts",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint . --max-warnings 0 && prettier --check src scripts test",
+    "format": "prettier --write src scripts test"
+  },
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "@types/bun": "latest",
+    "eslint": "^10.14.0",
+    "eslint-plugin-jsdoc": "^65.4.2",
+    "opencode-ai": "^1.19.5",
+    "prettier": "^3.9.10",
+    "typescript": "5",
+    "typescript-eslint": "^8.72.1"
+  },
+  "dependencies": {
+    "@opencode-ai/sdk": "^1.19.5",
+    "@opentui/core": "^0.8.1"
+  }
+}
