@@ -19,8 +19,6 @@ export interface State {
   checklist: Record<string, boolean>;
   intention: { status: "open" | "passed"; text: string; hint: string };
   feedback: string;
-  /** `provider/model` that last answered an LLM call; used in the posted prefix. */
-  model?: string;
 }
 
 export interface InlineComment {

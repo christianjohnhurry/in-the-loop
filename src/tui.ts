@@ -4,7 +4,6 @@ import { BoxRenderable, InputRenderable, InputRenderableEvents, TextRenderable, 
 import { CHECKLIST } from "./checklist";
 import { reviewGates } from "./gates";
 import { buildReviewPayload, ghLogin, parseDiff, postReview, validateTarget } from "./github";
-import { modelUsed } from "./llm";
 import { judgeIntention, reviewComments } from "./llm";
 import {
   appendInline, commentsPath, getSection, parseInline, readComments, setSection, type Store,
@@ -90,7 +89,6 @@ export async function runTui(store: Store, opts: { post: boolean }) {
         undefined,
         (e) => void appendFile(`${store.dir}/errors.log`, `${new Date().toISOString()} judge: ${String((e as Error)?.stack ?? e)}\n`),
       );
-      if (modelUsed()) state.model = modelUsed();
       busy = false;
       if (v.verdict === "pass") {
         state.intention.status = "passed";
@@ -126,7 +124,7 @@ export async function runTui(store: Store, opts: { post: boolean }) {
     const gates = reviewGates(state, parseInline(md));
     if (!gates.ok) { message = `Blocked: ${gates.missing.join(", ")}`; return; }
     busy = true; await draw();
-    try { state.feedback = await reviewComments(md); if (modelUsed()) state.model = modelUsed(); message = ""; }
+    try { state.feedback = await reviewComments(md); message = ""; }
     catch (e) { message = `Review failed: ${(e as Error).message}`; }
     busy = false;
   }
@@ -145,7 +143,7 @@ export async function runTui(store: Store, opts: { post: boolean }) {
     const bad = comments.map((c) => validateTarget(files, c.path, c.line)).find(Boolean);
     if (bad) { message = `Edited comment invalid: ${bad}`; return; }
     const reviewer = process.env.REVIEWER || (await ghLogin());
-    const model = state.model ?? "unknown-model";
+    const model = process.env.MODEL || "opencode-default";
     const general = getSection(md, "General") || "Review comments below.";
     const payload = buildReviewPayload({ prefix: `[${reviewer} + ${model}]`, general, comments, headSha: state.pr.headSha });
     payloadText = JSON.stringify(payload, null, 2);
