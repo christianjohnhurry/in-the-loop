@@ -29,6 +29,29 @@ export function closeLlm() {
   cached = undefined;
 }
 
+let selected: { providerID: string; modelID: string } | undefined;
+let lastUsed: string | undefined;
+
+/** "provider/model" for every model of every provider the local OpenCode has configured. */
+export async function listModels(): Promise<string[]> {
+  const { client } = await getClient();
+  const res = await client.config.providers({ directory: REPO_ROOT }, { throwOnError: true });
+  return res.data.providers.flatMap((p) => Object.keys(p.models).map((m) => `${p.id}/${m}`)).sort();
+}
+
+/** Select a model (`provider/model`), validated against what OpenCode has available. */
+export async function selectModel(spec: string) {
+  const i = spec.indexOf("/");
+  const available = await listModels();
+  if (i < 1 || !available.includes(spec)) {
+    throw new Error(`Unknown model "${spec}". Available:\n  ${available.join("\n  ")}`);
+  }
+  selected = { providerID: spec.slice(0, i), modelID: spec.slice(i + 1) };
+}
+
+/** The model that actually answered the last call (the explicit choice, or OpenCode's default). */
+export const modelUsed = () => lastUsed;
+
 async function ask(prompt: string, schema?: Record<string, unknown>): Promise<unknown> {
   const { client } = await getClient();
   const session = await client.session.create({ title: "review-tui", directory: REPO_ROOT }, { throwOnError: true });
@@ -37,15 +60,17 @@ async function ask(prompt: string, schema?: Record<string, unknown>): Promise<un
       sessionID: session.data.id,
       directory: REPO_ROOT,
       agent: AGENT,
+      ...(selected ? { model: selected } : {}),
       parts: [{ type: "text", text: prompt }],
       ...(schema ? { format: { type: "json_schema" as const, schema: schema as never } } : {}),
     },
     { throwOnError: true },
   );
   const data = res.data as {
-    info?: { structured?: unknown };
+    info?: { structured?: unknown; providerID?: string; modelID?: string };
     parts?: { type: string; text?: string }[];
   };
+  if (data.info?.providerID && data.info.modelID) lastUsed = `${data.info.providerID}/${data.info.modelID}`;
   if (data.info?.structured !== undefined) return data.info.structured;
   return (data.parts ?? []).filter((p) => p.type === "text").map((p) => p.text ?? "").join("\n");
 }
