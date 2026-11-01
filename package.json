@@ -1,0 +1,24 @@
+{
+  "name": "review-tui",
+  "module": "src/cli.ts",
+  "type": "module",
+  "private": true,
+  "bin": {
+    "review-tui": "src/cli.ts"
+  },
+  "scripts": {
+    "start": "bun src/cli.ts",
+    "test": "bun test",
+    "eval:judge": "bun scripts/eval-judge.ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@types/bun": "latest",
+    "opencode-ai": "^1.19.5",
+    "typescript": "5"
+  },
+  "dependencies": {
+    "@opencode-ai/sdk": "^1.19.5",
+    "@opentui/core": "^0.8.1"
+  }
+}
