@@ -5,6 +5,7 @@ import {
   InputRenderable,
   InputRenderableEvents,
   StyledText,
+  type TextChunk,
   TextRenderable,
   createCliRenderer,
 } from '@opentui/core';
@@ -15,8 +16,15 @@ import {
   ghLogin,
   parseDiff,
   postReview,
-  validateTarget,
+  validateRange,
 } from './github';
+import {
+  IdeClient,
+  describeContext,
+  discoverIdes,
+  resolveTarget,
+  type FoundIde,
+} from './ide';
 import {judgeIntention, reviewComments} from './llm';
 import {lines, span, styled, type Tone} from './theme';
 import {
@@ -28,6 +36,7 @@ import {
   setSection,
   type Store,
 } from './store';
+import type {InlineComment} from './types';
 
 const PAGES = ['Checklist', 'Intention', 'Comments', 'Review'] as const;
 
@@ -50,6 +59,8 @@ export interface TuiOptions {
 export async function runTui(store: Store, opts: TuiOptions): Promise<void> {
   const {state} = store;
   const files = parseDiff(store.diff);
+  const repoRoot = gitRoot();
+  let candidates: FoundIde[] = []; // from the last /ide scan
   const renderer = await createCliRenderer({exitOnCtrlC: true});
 
   const root = new BoxRenderable(renderer, {
@@ -75,6 +86,7 @@ export async function runTui(store: Store, opts: TuiOptions): Promise<void> {
     messageTone = tone;
   };
   let busy = false;
+  const ide = new IdeClient(() => void draw());
   let typingOff = false; // Esc: leave the input so arrows navigate
   let payloadText = '';
   const inputPage = (): boolean => state.page === 1 || state.page === 2;
@@ -82,6 +94,78 @@ export async function runTui(store: Store, opts: TuiOptions): Promise<void> {
 
   async function persist(): Promise<void> {
     await store.save();
+  }
+
+  /** One line: the IDE connection and what the reviewer is looking at. */
+  function ideLine(): TextChunk[] {
+    if (ide.status === 'connected') {
+      const here = describeContext(ide.context);
+      return [
+        span('IDE: ', 'accent', {bold: true}),
+        span(`${ide.ide!.lock.ideName} connected`, 'ok'),
+        span(' · ', 'muted'),
+        here
+          ? span(here, 'comment', {bold: !!ide.context.selection})
+          : span('no file open', 'muted'),
+        ...(here && !ide.context.selection
+          ? [span('  (no selection: type "42 comment")', 'muted')]
+          : []),
+      ];
+    }
+    if (ide.status === 'connecting')
+      return [
+        span('IDE: ', 'accent', {bold: true}),
+        span('connecting…', 'warn'),
+      ];
+    return [
+      span('IDE: ', 'accent', {bold: true}),
+      span('not connected', 'muted'),
+      span(
+        ide.ide
+          ? `  (${ide.problem}; reconnecting…)`
+          : ide.problem
+            ? `  (${ide.problem}; /ide to retry)`
+            : '  (/ide to connect)',
+        'muted',
+      ),
+    ];
+  }
+
+  /** The numbered list shown after `/ide` finds several IDEs. */
+  function candidateLines(): TextChunk[][] {
+    if (ide.status === 'connected' || candidates.length < 2) return [];
+    return candidates.map((c, i) => [
+      span(`  /ide ${i + 1}`, 'accent'),
+      span(
+        `  ${c.lock.ideName}: ${c.lock.workspaceFolders.join(', ')}`,
+        'muted',
+      ),
+    ]);
+  }
+
+  /** Handles `/ide`, `/ide N` and `/ide off`. */
+  async function ideCommand(arg: string): Promise<void> {
+    if (arg === 'off') {
+      ide.disconnect();
+      candidates = [];
+      return say('IDE disconnected.');
+    }
+    candidates = await discoverIdes(repoRoot);
+    const pick = /^\d+$/.test(arg) ? candidates[Number(arg) - 1] : undefined;
+    if (candidates.length === 0)
+      return say(
+        `No running IDE found for ${repoRoot}. Open the repo in VS Code with the extension.`,
+        'warn',
+      );
+    if (arg && !pick) return say(`No IDE number ${arg}.`, 'error');
+    if (!pick && candidates.length > 1)
+      return say('Several IDEs match: pick one with /ide N.', 'warn');
+    try {
+      await ide.connect(pick ?? candidates[0]!);
+      say(`Connected to ${ide.ide!.lock.ideName}.`);
+    } catch (e) {
+      say(`Could not connect: ${(e as Error).message}`, 'error');
+    }
   }
 
   async function draw(): Promise<void> {
@@ -157,15 +241,25 @@ export async function runTui(store: Store, opts: TuiOptions): Promise<void> {
       text = lines([
         [
           span('Add: ', 'accent', {bold: true}),
-          span('path:line comment'),
+          span(
+            ide.status === 'connected'
+              ? 'comment on the selection'
+              : 'path:line comment',
+          ),
           span('   (or: general: text for the review body)', 'muted'),
         ],
+        ideLine(),
+        ...candidateLines(),
         [span('Files in diff:', 'muted')],
         ...[...files.keys()].map((f) => [span(`  ${f}`, 'muted')]),
         [],
         [span(`Comments (${comments.length}):`, 'accent', {bold: true})],
         ...comments.map((c) => [
-          span(`  ${c.path}:L${c.line}`, 'comment', {bold: true}),
+          span(
+            `  ${c.path}:L${c.startLine === undefined ? c.line : `${c.startLine}-${c.line}`}`,
+            'comment',
+            {bold: true},
+          ),
           span(' — '),
           span(c.body),
         ]),
@@ -263,8 +357,12 @@ export async function runTui(store: Store, opts: TuiOptions): Promise<void> {
         say('Not yet: retry.', 'warn');
       }
     } else if (state.page === 2) {
+      const cmd = value.trim().match(/^\/ide(?:\s+(\S+))?$/);
       const g = value.match(/^general:\s*(.+)$/i);
-      if (g) {
+      if (cmd) {
+        input.value = '';
+        await ideCommand(cmd[1] ?? '');
+      } else if (g) {
         const md = await readComments(store.dir);
         const prev = getSection(md, 'General');
         await Bun.write(
@@ -274,24 +372,47 @@ export async function runTui(store: Store, opts: TuiOptions): Promise<void> {
         say('Added to general comment.');
         input.value = '';
       } else {
-        const m = value.match(/^(\S+?):(\d+)\s+(.+)$/);
-        const err = m
-          ? validateTarget(files, m[1]!, Number(m[2]))
-          : 'Use: path:line comment';
-        if (err || !m) say(err ?? '', 'error');
-        else {
-          await appendInline(store.dir, {
-            path: m[1]!,
-            line: Number(m[2]),
-            body: m[3]!,
-          });
-          say('Added.');
-          input.value = '';
-        }
+        const m = value.match(/^(\S+?):(\d+)(?:-(\d+))?\s+(.+)$/);
+        if (m) {
+          const first = Number(m[2]);
+          const last = m[3] === undefined ? first : Number(m[3]);
+          const startLine = last > first ? first : undefined;
+          const err = validateRange(files, m[1]!, startLine, last);
+          if (err) say(err, 'error');
+          else {
+            await addComment({path: m[1]!, startLine, line: last, body: m[4]!});
+            input.value = '';
+          }
+        } else if (ide.status === 'connected') {
+          // No explicit path:line: the comment is about what the IDE shows.
+          const spec = value.match(/^(\d+(?:-\d+)?)\s+(.+)$/s);
+          const t = resolveTarget(
+            ide.context,
+            ide.ide!.lock,
+            repoRoot,
+            files,
+            ide.context.selection ? undefined : spec?.[1],
+          );
+          if ('error' in t) say(t.error, 'error');
+          else {
+            const body = ide.context.selection ? value.trim() : spec![2]!;
+            await addComment({...t, body});
+            input.value = '';
+          }
+        } else
+          say('Use: path:line comment (or /ide to use your editor)', 'error');
       }
     }
     await persist();
     await draw();
+  }
+  /** Appends an inline comment and confirms with the range it landed on. */
+  async function addComment(c: InlineComment): Promise<void> {
+    if (c.startLine === undefined) delete c.startLine;
+    await appendInline(store.dir, c);
+    say(
+      `Added on ${c.path}:L${c.startLine === undefined ? c.line : `${c.startLine}-${c.line}`}.`,
+    );
   }
   input.on(InputRenderableEvents.ENTER, (v: string): void => void submit(v));
 
@@ -330,7 +451,7 @@ export async function runTui(store: Store, opts: TuiOptions): Promise<void> {
       return;
     }
     const bad = comments
-      .map((c) => validateTarget(files, c.path, c.line))
+      .map((c) => validateRange(files, c.path, c.startLine, c.line))
       .find(Boolean);
     if (bad) {
       say(`Edited comment invalid: ${bad}`, 'error');
@@ -403,4 +524,24 @@ export async function runTui(store: Store, opts: TuiOptions): Promise<void> {
   });
 
   await draw();
+
+  // Like Claude Code's /ide: connect automatically when exactly one matches.
+  candidates = await discoverIdes(repoRoot);
+  if (candidates.length === 1) {
+    try {
+      await ide.connect(candidates[0]!);
+      say(`Connected to ${ide.ide!.lock.ideName}.`);
+    } catch {
+      // Stale lock or refused: stay usable without it; /ide shows why.
+    }
+    await draw();
+  }
+}
+
+/** The repo checkout: the git top level of the working directory. */
+function gitRoot(): string {
+  const r = spawnSync('git', ['rev-parse', '--show-toplevel'], {
+    encoding: 'utf8',
+  });
+  return r.status === 0 ? r.stdout.trim() : process.cwd();
 }
