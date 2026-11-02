@@ -101,9 +101,11 @@ export function getSection(md: string, name: string): string {
     .trim();
 }
 
-/** Formats one inline comment as a `- path:L12 — comment` list item. */
+/** Formats one inline comment as `- path:L12 — comment` or `path:L12-15`. */
 export function formatInline(c: InlineComment): string {
-  return `- ${c.path}:L${c.line} — ${c.body}`;
+  const at =
+    c.startLine === undefined ? `L${c.line}` : `L${c.startLine}-${c.line}`;
+  return `- ${c.path}:${at} — ${c.body}`;
 }
 
 /**
@@ -122,8 +124,8 @@ export async function appendInline(
 }
 
 /**
- * Parses `- path:L12 — comment` lines (plus indented continuation lines)
- * from the `## Inline` section.
+ * Parses `- path:L12 — comment` (or `path:L12-15`) lines, plus indented
+ * continuation lines, from the `## Inline` section.
  *
  * @param md Contents of comments.md.
  * @return The inline comments, in file order.
@@ -131,9 +133,17 @@ export async function appendInline(
 export function parseInline(md: string): InlineComment[] {
   const out: InlineComment[] = [];
   for (const line of getSection(md, 'Inline').split('\n')) {
-    const m = line.match(/^- (\S+?):L(\d+) [—-] (.*)$/);
-    if (m) out.push({path: m[1]!, line: Number(m[2]), body: m[3]!.trim()});
-    else if (/^\s+\S/.test(line) && out.length)
+    const m = line.match(/^- (\S+?):L(\d+)(?:-(\d+))? [—-] (.*)$/);
+    if (m) {
+      const first = Number(m[2]);
+      const last = m[3] === undefined ? first : Number(m[3]);
+      out.push({
+        path: m[1]!,
+        line: last,
+        ...(last > first ? {startLine: first} : {}),
+        body: m[4]!.trim(),
+      });
+    } else if (/^\s+\S/.test(line) && out.length)
       out[out.length - 1]!.body += `\n${line.trim()}`;
   }
   return out;

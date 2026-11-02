@@ -30,9 +30,12 @@ export interface State {
   feedback: string;
 }
 
-/** One line comment on the PR's new side. */
+/** One line or line-range comment on the PR's new side. */
 export interface InlineComment {
   path: string;
+  /** Last line of the comment (the only line for a single-line comment). */
   line: number;
+  /** First line of a multi-line range; absent for a single line. */
+  startLine?: number;
   body: string;
 }
