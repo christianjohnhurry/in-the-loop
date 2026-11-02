@@ -6,6 +6,12 @@ uses [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+
+- Colour theme (`src/theme.ts`): terracotta accent, muted greys, green/amber/red
+  for pass, retry and errors. No backgrounds are set, so it suits dark and
+  light terminals; text markers (`[x]`, `>`, pass/retry, Locked) are kept.
+
 ## [0.1.0] - 2026-11-01
 
 First walking skeleton (SWE-2): all four pages, end to end, on one PR.

@@ -4,6 +4,7 @@ import {
   BoxRenderable,
   InputRenderable,
   InputRenderableEvents,
+  StyledText,
   TextRenderable,
   createCliRenderer,
 } from '@opentui/core';
@@ -17,6 +18,7 @@ import {
   validateTarget,
 } from './github';
 import {judgeIntention, reviewComments} from './llm';
+import {lines, span, styled, type Tone} from './theme';
 import {
   appendInline,
   commentsPath,
@@ -66,6 +68,12 @@ export async function runTui(store: Store, opts: TuiOptions): Promise<void> {
 
   let cursor = 0; // checklist cursor
   let message = ''; // transient status line
+  let messageTone: Tone = 'ok';
+  /** Sets the status line; errors and blocks stand out from normal messages. */
+  const say = (text: string, tone: Tone = 'ok'): void => {
+    message = text;
+    messageTone = tone;
+  };
   let busy = false;
   let typingOff = false; // Esc: leave the input so arrows navigate
   let payloadText = '';
@@ -80,38 +88,129 @@ export async function runTui(store: Store, opts: TuiOptions): Promise<void> {
     const md = await readComments(store.dir);
     const comments = parseInline(md);
     const gates = reviewGates(state, comments);
-    header.content = `◀ ${PAGES.map((p, i) => (i === state.page ? `[ ${p} ]` : p)).join('  ')} ▶   (${state.page + 1}/${PAGES.length})   PR #${state.pr.number}: ${state.pr.title}`;
-    let text: string;
+    header.content = styled(
+      span('◀ ', 'muted'),
+      ...PAGES.flatMap((p, i) => [
+        i === state.page
+          ? span(`[ ${p} ]`, 'accent', {bold: true})
+          : span(p, 'muted'),
+        '  ',
+      ]),
+      span('▶', 'muted'),
+      span(`   (${state.page + 1}/${PAGES.length})   `, 'muted'),
+      span(`PR #${state.pr.number}: ${state.pr.title}`, undefined, {
+        bold: true,
+      }),
+    );
+    let text: StyledText;
     let hint = '←/→ pages · Ctrl+C quit';
     if (state.page === 0) {
-      text = CHECKLIST.map(
-        (c, i) =>
-          `${i === cursor ? '>' : ' '} [${state.checklist[c.id] ? 'x' : ' '}] ${c.label}`,
-      ).join('\n');
+      text = lines(
+        CHECKLIST.map((c, i) => {
+          const on = state.checklist[c.id];
+          const here = i === cursor;
+          return [
+            span(here ? '> ' : '  ', 'accent', {bold: true}),
+            span(`[${on ? 'x' : ' '}] `, on ? 'ok' : 'muted', {bold: on}),
+            on
+              ? span(c.label, 'muted')
+              : span(c.label, here ? 'accent' : undefined, {bold: here}),
+          ];
+        }),
+      );
       hint += ' · ↑/↓ move · space tick';
     } else if (state.page === 1) {
+      const i = state.intention;
       text = intentionLocked()
-        ? `Intention accepted and saved to comments.md:\n\n${state.intention.text}`
-        : `In your own words: what does this PR change, and why?\n(The reviewer states it; the judge only says pass/retry.)\n\n${state.intention.hint ? `Hint: ${state.intention.hint}\n\n` : ''}${state.intention.text ? `Your last attempt: ${state.intention.text}` : ''}`;
+        ? lines([
+            [
+              span('🔒 Locked: ', 'ok', {bold: true}),
+              span('intention accepted and saved to comments.md', 'ok'),
+            ],
+            [],
+            [span(i.text)],
+          ])
+        : lines([
+            [span('In your own words: what does this PR change, and why?')],
+            [
+              span(
+                '(The reviewer states it; the judge only says pass/retry.)',
+                'muted',
+              ),
+            ],
+            [],
+            ...(i.hint
+              ? [
+                  [
+                    span('retry · Hint: ', 'warn', {bold: true}),
+                    span(i.hint, 'warn'),
+                  ],
+                  [],
+                ]
+              : []),
+            ...(i.text
+              ? [[span('Your last attempt: ', 'muted'), span(i.text)]]
+              : []),
+          ]);
       hint += ' · type + Enter submit · Esc leave input';
     } else if (state.page === 2) {
-      text = `Add: path:line comment   (or: general: text for the review body)\nFiles in diff:\n${[...files.keys()].map((f) => `  ${f}`).join('\n')}\n\nComments (${comments.length}):\n${comments.map((c) => `  ${c.path}:L${c.line} — ${c.body}`).join('\n')}`;
+      text = lines([
+        [
+          span('Add: ', 'accent', {bold: true}),
+          span('path:line comment'),
+          span('   (or: general: text for the review body)', 'muted'),
+        ],
+        [span('Files in diff:', 'muted')],
+        ...[...files.keys()].map((f) => [span(`  ${f}`, 'muted')]),
+        [],
+        [span(`Comments (${comments.length}):`, 'accent', {bold: true})],
+        ...comments.map((c) => [
+          span(`  ${c.path}:L${c.line}`, 'comment', {bold: true}),
+          span(' — '),
+          span(c.body),
+        ]),
+      ]);
       hint += ' · Enter add · Esc leave input';
     } else {
-      text = [
-        `Gates: ${gates.ok ? 'all passed' : gates.missing.join(', ')}`,
-        `Mode: ${opts.post ? 'POST (live)' : 'dry run'}`,
-        '',
-        state.feedback ? `Feedback on your comments:\n${state.feedback}` : '',
-        payloadText ? `\nPayload:\n${payloadText}` : '',
-      ].join('\n');
+      text = lines([
+        [
+          span('Gates: ', 'accent', {bold: true}),
+          gates.ok
+            ? span('all passed', 'ok', {bold: true})
+            : span(`blocked: ${gates.missing.join(', ')}`, 'warn', {
+                bold: true,
+              }),
+        ],
+        [
+          span('Mode: ', 'accent', {bold: true}),
+          opts.post
+            ? span('POST (live)', 'error', {bold: true})
+            : span('dry run', 'muted'),
+        ],
+        [],
+        ...(state.feedback
+          ? [
+              [span('Feedback on your comments (LLM):', 'llm', {bold: true})],
+              ...state.feedback.split('\n').map((l) => [span(l, 'llm')]),
+            ]
+          : []),
+        ...(payloadText
+          ? [
+              [],
+              [span('Payload:', 'accent', {bold: true})],
+              ...payloadText.split('\n').map((l) => [span(l, 'muted')]),
+            ]
+          : []),
+      ]);
       hint +=
         ' · s start review · e edit comments.md · p ' +
         (opts.post ? 'post' : 'dry-run payload');
     }
     body.content = text;
-    status.content = busy ? 'working…' : message;
-    footer.content = hint;
+    status.content = busy
+      ? styled(span('working…', 'warn'))
+      : styled(span(message, messageTone, {bold: messageTone === 'error'}));
+    footer.content = styled(span(hint, 'muted'));
     input.visible = inputPage() && !(state.page === 1 && intentionLocked());
     if (input.visible && !typingOff) {
       input.placeholder =
@@ -124,7 +223,7 @@ export async function runTui(store: Store, opts: TuiOptions): Promise<void> {
   async function go(page: number): Promise<void> {
     state.page = (page + PAGES.length) % PAGES.length;
     typingOff = false;
-    message = '';
+    say('');
     await persist();
     await draw();
   }
@@ -158,10 +257,10 @@ export async function runTui(store: Store, opts: TuiOptions): Promise<void> {
           commentsPath(store.dir),
           setSection(md, 'Intention', state.intention.text),
         );
-        message = 'Intention passed.';
+        say('Intention passed.');
       } else {
         state.intention.hint = v.hint;
-        message = 'Not yet.';
+        say('Not yet: retry.', 'warn');
       }
     } else if (state.page === 2) {
       const g = value.match(/^general:\s*(.+)$/i);
@@ -172,21 +271,21 @@ export async function runTui(store: Store, opts: TuiOptions): Promise<void> {
           commentsPath(store.dir),
           setSection(md, 'General', prev ? `${prev}\n${g[1]}` : g[1]!),
         );
-        message = 'Added to general comment.';
+        say('Added to general comment.');
         input.value = '';
       } else {
         const m = value.match(/^(\S+?):(\d+)\s+(.+)$/);
         const err = m
           ? validateTarget(files, m[1]!, Number(m[2]))
           : 'Use: path:line comment';
-        if (err || !m) message = err ?? '';
+        if (err || !m) say(err ?? '', 'error');
         else {
           await appendInline(store.dir, {
             path: m[1]!,
             line: Number(m[2]),
             body: m[3]!,
           });
-          message = 'Added.';
+          say('Added.');
           input.value = '';
         }
       }
@@ -200,16 +299,16 @@ export async function runTui(store: Store, opts: TuiOptions): Promise<void> {
     const md = await readComments(store.dir);
     const gates = reviewGates(state, parseInline(md));
     if (!gates.ok) {
-      message = `Blocked: ${gates.missing.join(', ')}`;
+      say(`Blocked: ${gates.missing.join(', ')}`, 'error');
       return;
     }
     busy = true;
     await draw();
     try {
       state.feedback = await reviewComments(md);
-      message = '';
+      say('');
     } catch (e) {
-      message = `Review failed: ${(e as Error).message}`;
+      say(`Review failed: ${(e as Error).message}`, 'error');
     }
     busy = false;
   }
@@ -227,14 +326,14 @@ export async function runTui(store: Store, opts: TuiOptions): Promise<void> {
     const comments = parseInline(md);
     const gates = reviewGates(state, comments);
     if (!gates.ok) {
-      message = `Blocked: ${gates.missing.join(', ')}`;
+      say(`Blocked: ${gates.missing.join(', ')}`, 'error');
       return;
     }
     const bad = comments
       .map((c) => validateTarget(files, c.path, c.line))
       .find(Boolean);
     if (bad) {
-      message = `Edited comment invalid: ${bad}`;
+      say(`Edited comment invalid: ${bad}`, 'error');
       return;
     }
     const reviewer = process.env.REVIEWER || (await ghLogin());
@@ -248,9 +347,11 @@ export async function runTui(store: Store, opts: TuiOptions): Promise<void> {
     });
     payloadText = JSON.stringify(payload, null, 2);
     await Bun.write(`${store.dir}/payload.json`, payloadText);
-    message = opts.post
-      ? `Posted: ${await postReview(state.pr, payload)}`
-      : `Dry run: payload saved to ${store.dir}/payload.json`;
+    say(
+      opts.post
+        ? `Posted: ${await postReview(state.pr, payload)}`
+        : `Dry run: payload saved to ${store.dir}/payload.json`,
+    );
   }
 
   renderer.keyInput.on('keypress', async (key) => {
@@ -258,13 +359,13 @@ export async function runTui(store: Store, opts: TuiOptions): Promise<void> {
     const inputEmpty = !input.value;
     if (key.name === 'escape') {
       typingOff = true;
-      message = 'Input off: use ←/→; Enter or i to type again';
+      say('Input off: use ←/→; Enter or i to type again', 'muted');
       await draw();
       return;
     }
     if (typingOff && (key.name === 'return' || key.name === 'i')) {
       typingOff = false;
-      message = '';
+      say('');
       await draw();
       return;
     }
@@ -293,7 +394,7 @@ export async function runTui(store: Store, opts: TuiOptions): Promise<void> {
         try {
           await publish();
         } catch (e) {
-          message = `Failed: ${(e as Error).message}`;
+          say(`Failed: ${(e as Error).message}`, 'error');
         }
       }
       await persist();
