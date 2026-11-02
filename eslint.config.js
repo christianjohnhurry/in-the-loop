@@ -6,7 +6,7 @@ import jsdoc from 'eslint-plugin-jsdoc';
 import tseslint from 'typescript-eslint';
 
 export default tseslint.config(
-  {ignores: ['node_modules/', 'reviews/']},
+  {ignores: ['node_modules/', 'reviews/', 'vscode-extension/dist/']},
   js.configs.recommended,
   ...tseslint.configs.recommended,
   jsdoc.configs['flat/recommended-typescript'],
@@ -41,6 +41,17 @@ export default tseslint.config(
       'jsdoc/require-returns-type': 'off',
       'jsdoc/require-param': 'off',
       'jsdoc/require-returns': 'off',
+    },
+  },
+  {
+    // The extension is held to a stricter bar: every function, exported or
+    // not, needs a docstring.
+    files: ['vscode-extension/src/**/*.ts'],
+    rules: {
+      'jsdoc/require-jsdoc': [
+        'error',
+        {require: {FunctionDeclaration: true, ClassDeclaration: true}},
+      ],
     },
   },
 );

@@ -1,0 +1,31 @@
+{
+  "name": "review-tui-selection",
+  "displayName": "review-tui selection",
+  "description": "Tells review-tui which file and lines you are looking at.",
+  "version": "0.1.0",
+  "publisher": "in-the-loop",
+  "private": true,
+  "license": "UNLICENSED",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/christianjohnhurry/in-the-loop"
+  },
+  "engines": {
+    "vscode": "^1.85.0"
+  },
+  "main": "./dist/extension.js",
+  "activationEvents": ["onStartupFinished"],
+  "contributes": {},
+  "scripts": {
+    "build": "bun build src/extension.ts --outfile dist/extension.js --target node --format cjs --external vscode",
+    "package": "bun run build && npx --yes @vscode/vsce package --no-dependencies"
+  },
+  "dependencies": {
+    "ws": "^8.18.0"
+  },
+  "devDependencies": {
+    "@types/node": "^26.6.6",
+    "@types/vscode": "^1.85.0",
+    "@types/ws": "^8.5.0"
+  }
+}
