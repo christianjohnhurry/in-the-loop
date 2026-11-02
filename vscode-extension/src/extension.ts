@@ -1,3 +1,7 @@
+/**
+ * @file VS Code entry point: watches the active editor and selection and hands
+ * them to the local server (`server.ts`), advertising it via a lock file.
+ */
 import {relative, sep} from 'node:path';
 import * as vscode from 'vscode';
 import {toSelection} from './lines';
@@ -6,8 +10,20 @@ import type {ServerMessage} from './protocol';
 import {startServer} from './server';
 import type {IdeServer} from './server';
 
+/**
+ * How long to wait after the last editor event before sending, so dragging a
+ * selection sends one message when it settles, not one per mouse move.
+ */
 const DEBOUNCE_MS = 100;
 
+/**
+ * Gives a document's path relative to its workspace folder, with `/`
+ * separators on every platform.
+ *
+ * @param doc The document.
+ * @return The path, or null if it isn't a file inside a workspace folder
+ *     (e.g. an untitled buffer or a settings page).
+ */
 function repoRelativePath(doc: vscode.TextDocument): string | null {
   if (doc.uri.scheme !== 'file') return null;
   const folder = vscode.workspace.getWorkspaceFolder(doc.uri);
@@ -15,6 +31,12 @@ function repoRelativePath(doc: vscode.TextDocument): string | null {
   return folder ? rel.split(sep).join('/') : null;
 }
 
+/**
+ * Builds the messages describing the editor's current file and selection.
+ *
+ * @param editor The active editor, if any.
+ * @return An `active_file` message followed by a `selection` message.
+ */
 function describe(editor: vscode.TextEditor | undefined): ServerMessage[] {
   const path = editor ? repoRelativePath(editor.document) : null;
   const sel = path && editor ? editor.selection : undefined;
@@ -27,7 +49,9 @@ function describe(editor: vscode.TextEditor | undefined): ServerMessage[] {
   ];
 }
 
+/** The running server, kept so `deactivate` can close it. */
 let server: IdeServer | undefined;
+/** Path of our lock file, kept so `deactivate` can delete it. */
 let lockPath: string | undefined;
 
 /**
@@ -53,8 +77,10 @@ export async function activate(
   // Backstop for hosts that exit without calling deactivate().
   process.on('exit', () => lockPath && removeLock(lockPath));
 
+  // Last file path sent, so `active_file` is only sent when it changes.
   let lastFile: string | null | undefined;
   let timer: NodeJS.Timeout | undefined;
+  // Waits for editor events to settle, then sends the current state.
   const push = (): void => {
     clearTimeout(timer);
     timer = setTimeout(() => {

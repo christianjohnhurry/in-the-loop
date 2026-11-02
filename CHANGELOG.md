@@ -8,10 +8,10 @@ uses [Semantic Versioning](https://semver.org/).
 
 ### Added
 
-- VS Code extension (`vscode-extension/`, SWE-5): local WebSocket server that
+- VS Code extension (`vscode-extension/`): local WebSocket server that
   publishes the active file and selection, discovered via
   `~/.review-tui/ide/<port>.lock`. Protocol in `docs/ide-protocol.md`. review-tui
-  does not use it yet (SWE-6).
+  does not use it yet.
 - Colour theme (`src/theme.ts`): terracotta accent, muted greys, green/amber/red
   for pass, retry and errors. No backgrounds are set, so it suits dark and
   light terminals; text markers (`[x]`, `>`, pass/retry, Locked) are kept.

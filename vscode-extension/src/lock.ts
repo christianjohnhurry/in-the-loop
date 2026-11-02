@@ -1,3 +1,7 @@
+/**
+ * @file Writes and removes the lock file clients use to find the server.
+ * See docs/ide-protocol.md for its contents.
+ */
 import {mkdirSync, rmSync, writeFileSync} from 'node:fs';
 import {homedir} from 'node:os';
 import {join} from 'node:path';

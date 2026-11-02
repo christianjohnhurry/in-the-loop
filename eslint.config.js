@@ -43,4 +43,15 @@ export default tseslint.config(
       'jsdoc/require-returns': 'off',
     },
   },
+  {
+    // The extension is held to a stricter bar: every function, exported or
+    // not, needs a docstring.
+    files: ['vscode-extension/src/**/*.ts'],
+    rules: {
+      'jsdoc/require-jsdoc': [
+        'error',
+        {require: {FunctionDeclaration: true, ClassDeclaration: true}},
+      ],
+    },
+  },
 );

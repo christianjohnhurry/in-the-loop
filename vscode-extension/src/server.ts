@@ -1,3 +1,11 @@
+/**
+ * @file The local WebSocket server that clients (review-tui) connect to.
+ *
+ * It listens only on 127.0.0.1, refuses connections that lack the lock file's
+ * auth token, and sends each client the latest editor state on connect and
+ * every update after. It knows nothing about VS Code, so it can be tested
+ * on its own; `extension.ts` feeds it messages.
+ */
 import {randomBytes, timingSafeEqual} from 'node:crypto';
 import type {IncomingMessage} from 'node:http';
 import type {AddressInfo} from 'node:net';
@@ -14,6 +22,13 @@ export interface IdeServer {
   close(): Promise<void>;
 }
 
+/**
+ * Compares tokens in constant time, so response timing can't leak the token.
+ *
+ * @param given Value from the request header.
+ * @param expected The real token.
+ * @return Whether they match.
+ */
 function tokenMatches(given: unknown, expected: string): boolean {
   if (typeof given !== 'string') return false;
   const a = Buffer.from(given);

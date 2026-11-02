@@ -1,4 +1,7 @@
-/** Wire types shared by the server and documented in docs/ide-protocol.md. */
+/**
+ * @file Message and lock file types, shared by the server and documented in
+ * docs/ide-protocol.md.
+ */
 
 /** A highlighted range. Lines are 1-based and inclusive. */
 export interface Selection {

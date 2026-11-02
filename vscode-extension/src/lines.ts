@@ -1,3 +1,4 @@
+/** @file Converts VS Code selection ranges into the protocol's line ranges. */
 import type {Selection} from './protocol';
 
 /** A zero-based position, as VS Code reports it. */
