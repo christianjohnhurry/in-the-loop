@@ -6,7 +6,7 @@ import jsdoc from 'eslint-plugin-jsdoc';
 import tseslint from 'typescript-eslint';
 
 export default tseslint.config(
-  {ignores: ['node_modules/', 'reviews/']},
+  {ignores: ['node_modules/', 'reviews/', 'vscode-extension/dist/']},
   js.configs.recommended,
   ...tseslint.configs.recommended,
   jsdoc.configs['flat/recommended-typescript'],
