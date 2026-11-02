@@ -8,6 +8,16 @@ uses [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- VS Code extension (`vscode-extension/`): local WebSocket server that
+  publishes the active file and selection, discovered via
+  `~/.review-tui/ide/<port>.lock`. Protocol in `docs/ide-protocol.md`. review-tui
+  review-tui
+  now uses it (below).
+- review-tui connects to the extension (`src/ide.ts`): `/ide` command and
+  auto-connect, shows the active file/selection on the Comments page, and
+  targets new comments at the selection. Multi-line comments are stored as
+  `path:L42-48` in `comments.md` and sent with `start_line`/`line`. Selections
+  outside the PR diff are rejected; VS Code closing mid-session is handled.
 - Colour theme (`src/theme.ts`): terracotta accent, muted greys, green/amber/red
   for pass, retry and errors. No backgrounds are set, so it suits dark and
   light terminals; text markers (`[x]`, `>`, pass/retry, Locked) are kept.

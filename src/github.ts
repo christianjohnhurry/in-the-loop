@@ -135,6 +135,31 @@ export function validateTarget(
   return null;
 }
 
+/**
+ * Checks that every line of a comment's range is on the diff's new side.
+ *
+ * @param files Output of {@link parseDiff}.
+ * @param path File path.
+ * @param startLine First line of the range, or undefined for one line.
+ * @param line Last line of the range.
+ * @return An error message, or null when the whole range is valid.
+ */
+export function validateRange(
+  files: Map<string, Set<number>>,
+  path: string,
+  startLine: number | undefined,
+  line: number,
+): string | null {
+  const first = startLine ?? line;
+  if (first > line) return `${path}:${first}-${line} is a backwards range`;
+  for (let n = first; n <= line; n++) {
+    const err = validateTarget(files, path, n);
+    if (err)
+      return startLine === undefined ? err : `${path}:${first}-${line}: ${err}`;
+  }
+  return null;
+}
+
 /** What goes into a review. */
 export interface ReviewInput {
   /** Prepended to every comment, e.g. "[me + model]". */
@@ -152,7 +177,15 @@ export interface ReviewPayload {
   commit_id: string;
   event: 'COMMENT';
   body: string;
-  comments: {path: string; line: number; side: 'RIGHT'; body: string}[];
+  comments: {
+    path: string;
+    line: number;
+    side: 'RIGHT';
+    /** Only for multi-line comments; the range is start_line..line. */
+    start_line?: number;
+    start_side?: 'RIGHT';
+    body: string;
+  }[];
 }
 
 /**
@@ -172,6 +205,9 @@ export function buildReviewPayload(input: ReviewInput): ReviewPayload {
       path: c.path,
       line: c.line,
       side: 'RIGHT' as const,
+      ...(c.startLine === undefined
+        ? {}
+        : {start_line: c.startLine, start_side: 'RIGHT' as const}),
       body: tag(c.body),
     })),
   };

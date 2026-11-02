@@ -1,0 +1,6 @@
+# Build output from `bun run build`; regenerated, not source.
+dist
+# Packaged extension from `bun run package`; a build artifact.
+*.vsix
+# Dependencies from `bun install`.
+node_modules

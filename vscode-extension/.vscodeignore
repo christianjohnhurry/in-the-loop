@@ -1,0 +1,11 @@
+# Files left out of the .vsix. The installed extension only needs
+# dist/extension.js and package.json.
+# TypeScript sources: dist/extension.js is the bundled result.
+src/**
+# Dependencies are already bundled into dist/extension.js.
+node_modules/**
+# Dev-only config and lock file, not used at runtime.
+tsconfig.json
+bun.lock
+# Tests are for development only.
+test/**
