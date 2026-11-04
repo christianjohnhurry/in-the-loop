@@ -26,6 +26,7 @@ import {
   type FoundIde,
 } from './ide';
 import {currentModelLabel, judgeIntention, reviewComments} from './llm';
+import {CORNER_LOGO, cornerLogo, startPage} from './start';
 import {lines, span, styled, type Tone} from './theme';
 import {
   appendInline,
@@ -69,14 +70,38 @@ export async function runTui(store: Store, opts: TuiOptions): Promise<void> {
     height: '100%',
     padding: 1,
   });
-  const header = new TextRenderable(renderer, {content: ''});
+  const topBar = new BoxRenderable(renderer, {
+    visible: false,
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    width: '100%',
+    height: 1,
+  });
+  const logo = new TextRenderable(renderer, {
+    content: cornerLogo(),
+    width: CORNER_LOGO.length,
+    flexShrink: 0,
+  });
+  topBar.add(logo);
+  const header = new TextRenderable(renderer, {content: '', visible: false});
   const body = new TextRenderable(renderer, {content: '', flexGrow: 1});
+  const splash = new BoxRenderable(renderer, {
+    flexDirection: 'column',
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexGrow: 1,
+    visible: false,
+  });
+  for (const content of startPage(state.pr))
+    splash.add(new TextRenderable(renderer, {content}));
   const status = new TextRenderable(renderer, {content: ''});
   const input = new InputRenderable(renderer, {width: '100%', placeholder: ''});
   const footer = new TextRenderable(renderer, {content: ''});
-  for (const r of [header, body, status, input, footer]) root.add(r);
+  for (const r of [topBar, header, body, splash, status, input, footer])
+    root.add(r);
   renderer.root.add(root);
 
+  let started = false; // false while the start page is showing
   let cursor = 0; // checklist cursor
   let message = ''; // transient status line
   let messageTone: Tone = 'ok';
@@ -172,6 +197,18 @@ export async function runTui(store: Store, opts: TuiOptions): Promise<void> {
     const md = await readComments(store.dir);
     const comments = parseInline(md);
     const gates = reviewGates(state, comments);
+    topBar.visible = started;
+    body.visible = started;
+    splash.visible = !started;
+    header.visible = started;
+    if (!started) {
+      status.content = styled(span(''));
+      footer.content = styled(span('Enter start · Ctrl+C quit', 'muted'));
+      input.visible = false;
+      input.blur();
+      renderer.requestRender();
+      return;
+    }
     header.content = styled(
       span('◀ ', 'muted'),
       ...PAGES.flatMap((p, i) => [
@@ -476,6 +513,13 @@ export async function runTui(store: Store, opts: TuiOptions): Promise<void> {
   }
 
   renderer.keyInput.on('keypress', async (key) => {
+    if (!started) {
+      if (key.name === 'return') {
+        started = true;
+        await draw();
+      }
+      return;
+    }
     const typing = inputPage() && input.visible && !typingOff;
     const inputEmpty = !input.value;
     if (key.name === 'escape') {
