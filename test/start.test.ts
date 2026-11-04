@@ -41,7 +41,7 @@ test('corner logo fits on one line', () => {
   expect(CORNER_LOGO).not.toContain('\n');
 });
 
-test('a state.json without a branch still opens, keeping its page', async () => {
+test('a state.json without a branch still opens, keeping its page (migrated)', async () => {
   const root = await mkdtemp(join(tmpdir(), 'rtui-'));
   const dir = join(root, 'reviews', 'r-3');
   await mkdir(dir, {recursive: true});
@@ -57,5 +57,5 @@ test('a state.json without a branch still opens, keeping its page', async () => 
   await Bun.write(join(dir, 'state.json'), JSON.stringify(state));
   await Bun.write(join(dir, 'diff.patch'), '');
   const store = await openStore(root, pr.url);
-  expect(store.state.page).toBe(2);
+  expect(store.state.page).toBe(3);
 });

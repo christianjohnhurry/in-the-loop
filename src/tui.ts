@@ -23,11 +23,13 @@ import {
   describeContext,
   discoverIdes,
   resolveTarget,
+  toRepoPath,
   type FoundIde,
 } from './ide';
+import {enquire, subjectLabel, type Subject} from './enquire';
 import {currentModelLabel, judgeIntention, reviewComments} from './llm';
 import {CORNER_LOGO, cornerLogo, startPage} from './start';
-import {lines, span, styled, type Tone} from './theme';
+import {glow, lines, span, styled, type Tone} from './theme';
 import {
   appendInline,
   commentsPath,
@@ -39,7 +41,13 @@ import {
 } from './store';
 import type {InlineComment} from './types';
 
-const PAGES = ['Checklist', 'Intention', 'Comments', 'Review'] as const;
+const PAGES = [
+  'Checklist',
+  'Intention',
+  'Enquire',
+  'Comments',
+  'Review',
+] as const;
 
 /** Options for {@link runTui}. */
 export interface TuiOptions {
@@ -48,10 +56,11 @@ export interface TuiOptions {
 }
 
 /**
- * Runs the four-page review UI until the user quits.
+ * Runs the five-page review UI until the user quits.
  *
  * Pages: Checklist (tick steps), Intention (state what the PR does; an LLM
- * judge says pass/retry), Comments (`path:line comment`), Review (gated;
+ * judge says pass/retry), Enquire (ask about the selected code; never locked,
+ * not a gate), Comments (`path:line comment`), Review (gated;
  * model feedback, edit in $EDITOR, dry-run or post).
  *
  * @param store The open review (state, diff, directory).
@@ -114,7 +123,11 @@ export async function runTui(store: Store, opts: TuiOptions): Promise<void> {
   const ide = new IdeClient(() => void draw());
   let typingOff = false; // Esc: leave the input so arrows navigate
   let payloadText = '';
-  const inputPage = (): boolean => state.page === 1 || state.page === 2;
+  let asking = false; // an Enquire question is in flight
+  let glowStep = 0;
+  let glowTimer: ReturnType<typeof setInterval> | undefined;
+  const turns: Turn[] = []; // Enquire transcript (this run only)
+  const inputPage = (): boolean => state.page >= 1 && state.page <= 3;
   const intentionLocked = (): boolean => state.intention.status === 'passed';
 
   async function persist(): Promise<void> {
@@ -191,6 +204,57 @@ export async function runTui(store: Store, opts: TuiOptions): Promise<void> {
     } catch (e) {
       say(`Could not connect: ${(e as Error).message}`, 'error');
     }
+  }
+
+  /** What the reviewer has selected in VS Code, in repo-relative terms. */
+  function currentSubject(): Subject | null {
+    const {path, selection} = ide.context;
+    if (ide.status !== 'connected' || !path || !selection) return null;
+    const rel = toRepoPath(ide.ide!.lock, repoRoot, path, files);
+    return rel ? {path: rel, ...selection} : null;
+  }
+
+  /** The Enquire page: subject line, transcript, thinking status. */
+  function enquireLines(): TextChunk[][] {
+    const subject = currentSubject();
+    const subjectLine: TextChunk[] = [
+      span('Subject: ', 'accent', {bold: true}),
+      subject
+        ? span(subjectLabel(subject), 'comment', {bold: true})
+        : span(
+            ide.status === 'connected' && ide.context.path
+              ? 'no selection (select code in VS Code to ask about it)'
+              : 'none (/ide to connect VS Code, then select code)',
+            'muted',
+          ),
+    ];
+    return [
+      [
+        span(
+          'Ask about the code you selected. You judge; the model explains.',
+          'muted',
+        ),
+      ],
+      subjectLine,
+      ...candidateLines(),
+      ...turns
+        .slice(-MAX_TURNS_SHOWN)
+        .flatMap((t) => [
+          [],
+          [span(t.subject ? `── ${t.subject} ` : '── no selection ', 'muted')],
+          ...t.excerpt.map((l) => [span(`  ${l}`, 'muted', {dim: true})]),
+          [span('Q: ', 'accent', {bold: true}), span(t.question)],
+          ...(t.answer === undefined
+            ? []
+            : t.answer
+                .split('\n')
+                .map((l, i) => [
+                  span(i ? '   ' : 'A: ', 'llm', {bold: true}),
+                  span(l, 'llm'),
+                ])),
+        ]),
+      ...(asking ? [[], [glow('thinking…', glowStep)]] : []),
+    ];
   }
 
   async function draw(): Promise<void> {
@@ -275,6 +339,9 @@ export async function runTui(store: Store, opts: TuiOptions): Promise<void> {
           ]);
       hint += ' · type + Enter submit · Esc leave input';
     } else if (state.page === 2) {
+      text = lines(enquireLines());
+      hint += ' · type a question + Enter · /ide connect · Esc leave input';
+    } else if (state.page === 3) {
       text = lines([
         [
           span('Add: ', 'accent', {bold: true}),
@@ -345,7 +412,11 @@ export async function runTui(store: Store, opts: TuiOptions): Promise<void> {
     input.visible = inputPage() && !(state.page === 1 && intentionLocked());
     if (input.visible && !typingOff) {
       input.placeholder =
-        state.page === 1 ? 'your intention…' : 'path:line comment';
+        state.page === 1
+          ? 'your intention…'
+          : state.page === 2
+            ? 'your question…'
+            : 'path:line comment';
       input.focus();
     } else input.blur();
     renderer.requestRender();
@@ -395,6 +466,12 @@ export async function runTui(store: Store, opts: TuiOptions): Promise<void> {
       }
     } else if (state.page === 2) {
       const cmd = value.trim().match(/^\/ide(?:\s+(\S+))?$/);
+      if (cmd) {
+        input.value = '';
+        await ideCommand(cmd[1] ?? '');
+      } else if (!asking) await ask(value);
+    } else if (state.page === 3) {
+      const cmd = value.trim().match(/^\/ide(?:\s+(\S+))?$/);
       const g = value.match(/^general:\s*(.+)$/i);
       if (cmd) {
         input.value = '';
@@ -443,6 +520,44 @@ export async function runTui(store: Store, opts: TuiOptions): Promise<void> {
     await persist();
     await draw();
   }
+  /** Sends an Enquire question about the subject as it is right now. */
+  async function ask(question: string): Promise<void> {
+    const subject = currentSubject();
+    const turn: Turn = {
+      subject: subject ? subjectLabel(subject) : '',
+      excerpt: subject ? excerptLines(subject.text) : [],
+      question: question.trim(),
+    };
+    asking = true;
+    glowStep = 0;
+    glowTimer = setInterval(() => {
+      glowStep += 1;
+      void draw();
+    }, 200);
+    turns.push(turn);
+    await draw();
+    const r = await enquire(
+      {question, subject, diff: store.diff},
+      undefined,
+      (e) =>
+        void appendFile(
+          `${store.dir}/errors.log`,
+          `${new Date().toISOString()} enquire: ${String((e as Error)?.stack ?? e)}\n`,
+        ),
+    );
+    clearInterval(glowTimer);
+    asking = false;
+    if (r.ok) {
+      turn.answer = r.answer;
+      input.value = '';
+      say('');
+    } else {
+      // Failed turns are not kept; the question stays in the input.
+      turns.splice(turns.indexOf(turn), 1);
+      say(r.message, 'error');
+    }
+  }
+
   /** Appends an inline comment and confirms with the range it landed on. */
   async function addComment(c: InlineComment): Promise<void> {
     if (c.startLine === undefined) delete c.startLine;
@@ -552,7 +667,7 @@ export async function runTui(store: Store, opts: TuiOptions): Promise<void> {
       }
       return void (await draw());
     }
-    if (state.page === 3 && !busy) {
+    if (state.page === 4 && !busy) {
       if (key.name === 's') await startReview();
       else if (key.name === 'e') await editComments();
       else if (key.name === 'p') {
@@ -588,4 +703,29 @@ function gitRoot(): string {
     encoding: 'utf8',
   });
   return r.status === 0 ? r.stdout.trim() : process.cwd();
+}
+
+/** One Enquire exchange as shown in the transcript. */
+interface Turn {
+  /** `path:L10-20` as it was when the question was sent; empty if none. */
+  subject: string;
+  /** First lines of the selected text. */
+  excerpt: string[];
+  question: string;
+  /** Undefined while the model is thinking. */
+  answer?: string;
+}
+
+const MAX_TURNS_SHOWN = 5;
+const EXCERPT_LINES = 4;
+
+/** The first few selected lines, with a marker if there are more. */
+function excerptLines(text: string): string[] {
+  const all = text.split('\n');
+  return all.length > EXCERPT_LINES
+    ? [
+        ...all.slice(0, EXCERPT_LINES),
+        `… (${all.length - EXCERPT_LINES} more lines)`,
+      ]
+    : all;
 }
