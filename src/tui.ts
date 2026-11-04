@@ -25,7 +25,7 @@ import {
   resolveTarget,
   type FoundIde,
 } from './ide';
-import {judgeIntention, reviewComments} from './llm';
+import {currentModelLabel, judgeIntention, reviewComments} from './llm';
 import {lines, span, styled, type Tone} from './theme';
 import {
   appendInline,
@@ -458,7 +458,7 @@ export async function runTui(store: Store, opts: TuiOptions): Promise<void> {
       return;
     }
     const reviewer = process.env.REVIEWER || (await ghLogin());
-    const model = process.env.MODEL || 'opencode-default';
+    const model = currentModelLabel();
     const general = getSection(md, 'General') || 'Review comments below.';
     const payload = buildReviewPayload({
       prefix: `[${reviewer} + ${model}]`,

@@ -8,6 +8,11 @@ uses [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- `$MODEL` (`provider/model`) now selects the OpenCode model the judge runs on,
+  so the `[$REVIEWER + $MODEL]` prefix always names the model that ran. With
+  `$MODEL` unset, OpenCode's default is kept and the prefix shows the model
+  OpenCode reports (not `opencode-default`). A malformed `$MODEL` is rejected at
+  startup; an unknown model fails closed like any other judge error.
 - VS Code extension (`vscode-extension/`): local WebSocket server that
   publishes the active file and selection, discovered via
   `~/.review-tui/ide/<port>.lock`. Protocol in `docs/ide-protocol.md`. review-tui

@@ -6,7 +6,8 @@
  * the terminal UI. Without `--post` the final step is a dry run.
  */
 import {resolve} from 'node:path';
-import {closeLlm} from './llm';
+import {closeLlm, setModel} from './llm';
+import {parseModel} from './model';
 import {openStore} from './store';
 import {runTui} from './tui';
 
@@ -22,6 +23,13 @@ const post = args.includes('--post');
 const url = args.find((a) => !a.startsWith('--'));
 if (!url) {
   console.error('usage: review-tui <pr-url> [--post]');
+  process.exit(2);
+}
+
+try {
+  setModel(parseModel(process.env.MODEL));
+} catch (e) {
+  console.error((e as Error).message);
   process.exit(2);
 }
 
