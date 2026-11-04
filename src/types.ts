@@ -9,6 +9,8 @@ export interface PrInfo {
   body: string;
   /** Commit the diff and inline comments are anchored to. */
   headSha: string;
+  /** The PR head branch; absent in state.json saved before it was stored. */
+  headRefName?: string;
 }
 
 /** What the intention judge is allowed to say after parsing. */

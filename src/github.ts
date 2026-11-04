@@ -47,13 +47,14 @@ export async function fetchPr(
 ): Promise<{pr: PrInfo; diff: string}> {
   const {owner, repo, number} = parsePrUrl(url);
   const [view, diff] = await Promise.all([
-    gh(['pr', 'view', url, '--json', 'title,body,headRefOid']),
+    gh(['pr', 'view', url, '--json', 'title,body,headRefOid,headRefName']),
     gh(['pr', 'diff', url]),
   ]);
   const v = JSON.parse(view) as {
     title: string;
     body: string;
     headRefOid: string;
+    headRefName: string;
   };
   return {
     pr: {
@@ -64,9 +65,21 @@ export async function fetchPr(
       title: v.title,
       body: v.body,
       headSha: v.headRefOid,
+      headRefName: v.headRefName,
     },
     diff,
   };
+}
+
+/**
+ * Fetches just the PR head branch name.
+ *
+ * @param url The PR URL.
+ * @return The head branch name.
+ */
+export async function fetchHeadRefName(url: string): Promise<string> {
+  const v = JSON.parse(await gh(['pr', 'view', url, '--json', 'headRefName']));
+  return (v as {headRefName: string}).headRefName;
 }
 
 /** The login of the authenticated `gh` user, used as the default reviewer. */

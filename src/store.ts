@@ -1,7 +1,7 @@
 import {mkdir} from 'node:fs/promises';
 import {existsSync} from 'node:fs';
 import {join} from 'node:path';
-import {fetchPr} from './github';
+import {fetchHeadRefName, fetchPr} from './github';
 import type {InlineComment, State} from './types';
 
 /** An open review: its directory, parsed state and the PR diff. */
@@ -38,6 +38,14 @@ export async function openStore(root: string, url: string): Promise<Store> {
   if (existsSync(statePath)) {
     state = await Bun.file(statePath).json();
     diff = await Bun.file(join(dir, 'diff.patch')).text();
+    if (!state.pr.headRefName) {
+      // Saved before the branch was stored: refetch, but don't fail offline.
+      try {
+        state.pr.headRefName = await fetchHeadRefName(url);
+      } catch {
+        // Leave it unset; the start page shows "-".
+      }
+    }
   } else {
     const fetched = await fetchPr(url);
     diff = fetched.diff;

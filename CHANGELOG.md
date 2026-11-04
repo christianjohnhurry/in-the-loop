@@ -8,6 +8,11 @@ uses [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- Start page: on launch (and on resume) review-tui shows the In The Loop
+  logo, the repo and the PR head branch, and waits for Enter. A resumed review
+  then returns to its saved page. A small "In The Loop" logo stays in the
+  top-right corner of every page. The head branch (`headRefName`) is now
+  saved in `state.json`; older files are backfilled via `gh`, or show `-`.
 - `$MODEL` (`provider/model`) now selects the OpenCode model the judge runs on,
   so the `[$REVIEWER + $MODEL]` prefix always names the model that ran. With
   `$MODEL` unset, OpenCode's default is kept and the prefix shows the model
