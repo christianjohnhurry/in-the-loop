@@ -2,8 +2,8 @@ import {expect, test} from 'bun:test';
 import {mkdtemp, mkdir} from 'node:fs/promises';
 import {tmpdir} from 'node:os';
 import {join} from 'node:path';
-import {syncLogo} from '../src/readme';
-import {CORNER_LOGO, bigText, logoText, startPage} from '../src/start';
+import {logoSvg} from '../src/logo-svg';
+import {CORNER_LOGO, bigText, startPage} from '../src/start';
 import {openStore} from '../src/store';
 import type {PrInfo, State} from '../src/types';
 
@@ -61,10 +61,9 @@ test('a state.json without a branch still opens, keeping its page (migrated)', a
   expect(store.state.page).toBe(3);
 });
 
-test('README logo matches the start page', async () => {
-  const readme = await Bun.file(
-    new URL('../README.md', import.meta.url),
+test('docs/logo.svg matches the start page', async () => {
+  const svg = await Bun.file(
+    new URL('../docs/logo.svg', import.meta.url),
   ).text();
-  expect(syncLogo(readme)).toBe(readme);
-  expect(readme).toContain(logoText().join('\n'));
+  expect(svg).toBe(logoSvg());
 });

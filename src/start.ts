@@ -58,27 +58,25 @@ export function bigText(word: string, size: LogoSize = 'large'): string[] {
   );
 }
 
-/** Subtitle under the block letters. */
-const SUBTITLE = 'R E V I E W  -  T U I';
-
-/**
- * The start-page logo as plain text, each block centred on the widest, for
- * places without styling such as the README.
- *
- * @return The logo lines, without trailing spaces.
- */
-export function logoText(): string[] {
-  const blocks = [bigText('IN THE', 'medium'), bigText('L∞P'), [SUBTITLE]];
-  const width = Math.max(...blocks.flat().map((l) => l.length));
-  return blocks.flatMap((b, i) => [
-    ...(i ? [''] : []),
-    ...b.map((l) => centre(l, width).trimEnd()),
-  ]);
+/** A run of logo lines and how the start page colours them. */
+export interface LogoBlock {
+  lines: string[];
+  tone: Tone;
+  bold: boolean;
 }
 
-/** Pads a line on the left to centre it in `width` columns. */
-function centre(line: string, width: number): string {
-  return ' '.repeat(Math.floor((width - line.length) / 2)) + line;
+/**
+ * The start-page logo, top to bottom: IN THE, LOOP, then the subtitle. Shared
+ * by the start page and the README's logo image so they cannot drift.
+ *
+ * @return The logo blocks, uncentred.
+ */
+export function logoBlocks(): LogoBlock[] {
+  return [
+    {lines: bigText('IN THE', 'medium'), tone: 'muted', bold: false},
+    {lines: bigText('L∞P'), tone: 'accent', bold: true},
+    {lines: ['R E V I E W  -  T U I'], tone: 'muted', bold: true},
+  ];
 }
 
 /**
@@ -95,13 +93,12 @@ export function startPage(pr: PrInfo): StyledText[] {
     o?: {bold?: boolean},
   ): TextChunk[] => [span(text, tone, o)];
   const blank = lines([row(' ')]);
+  const logo = logoBlocks().flatMap((b) => [
+    lines(b.lines.map((l) => row(l, b.tone, {bold: b.bold}))),
+    blank,
+  ]);
   return [
-    lines(bigText('IN THE', 'medium').map((l) => row(l, 'muted'))),
-    blank,
-    lines(bigText('L∞P').map((l) => row(l, 'accent', {bold: true}))),
-    blank,
-    lines([row(SUBTITLE, 'muted', {bold: true})]),
-    blank,
+    ...logo,
     lines([[span('repo: ', 'muted'), span(`${pr.owner}/${pr.repo}`)]]),
     lines([[span('branch: ', 'muted'), span(pr.headRefName || '-')]]),
     blank,
