@@ -35,24 +35,10 @@ const MEDIUM: Record<string, string[]> = {
   E: ['█▀▀', '█▀▀', '█▄▄'],
 };
 
-/** Smallest letters for the review-tui subtitle, two rows each. */
-const SMALL: Record<string, string[]> = {
-  ' ': ['  ', '  '],
-  '-': ['▄▄▄', '   '],
-  r: ['█▀▀', '█  '],
-  e: ['█▀▀', '█▄▄'],
-  v: ['█ █', '▀▄▀'],
-  i: ['▀', '█'],
-  w: ['█ █ █', '▀▄▀▄▀'],
-  t: ['▀█▀', ' █ '],
-  u: ['█ █', '█▄█'],
-};
-
 /** Logo sizes: the letters and the gap between them. */
 const FONTS = {
   large: {glyphs: FONT, gap: '  '},
   medium: {glyphs: MEDIUM, gap: ' '},
-  small: {glyphs: SMALL, gap: ' '},
 };
 
 /** Name of a size in {@link FONTS}. */
@@ -62,7 +48,7 @@ export type LogoSize = keyof typeof FONTS;
  * Renders a word in block letters.
  *
  * @param word Letters present in the font; ∞ is the two O's of LOOP joined.
- * @param size Which font: large (5 rows), medium (3) or small (2).
+ * @param size Which font: large (5 rows) or medium (3).
  * @return Lines of block art.
  */
 export function bigText(word: string, size: LogoSize = 'large'): string[] {
@@ -91,7 +77,7 @@ export function startPage(pr: PrInfo): StyledText[] {
     blank,
     lines(bigText('L∞P').map((l) => row(l, 'accent', {bold: true}))),
     blank,
-    lines(bigText('review-tui', 'small').map((l) => row(l, 'muted'))),
+    lines([row('R E V I E W  -  T U I', 'muted', {bold: true})]),
     blank,
     lines([[span('repo: ', 'muted'), span(`${pr.owner}/${pr.repo}`)]]),
     lines([[span('branch: ', 'muted'), span(pr.headRefName || '-')]]),

@@ -26,7 +26,7 @@ test('start page shows logo, subtitle, repo, branch and prompt', () => {
   const t = plain(pr);
   for (const l of [...bigText('IN THE', 'medium'), ...bigText('L∞P')])
     expect(t).toContain(l);
-  for (const l of bigText('review-tui', 'small')) expect(t).toContain(l);
+  expect(t).toContain('R E V I E W  -  T U I');
   expect(t).toContain('repo: o/r');
   expect(t).toContain('branch: feat/x');
   expect(t).toContain('Press Enter to start');
