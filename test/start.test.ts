@@ -24,7 +24,7 @@ const plain = (pr: PrInfo): string =>
 
 test('start page shows logo, subtitle, repo, branch and prompt', () => {
   const t = plain(pr);
-  for (const l of [...bigText('IN THE'), ...bigText('LOOP')])
+  for (const l of [...bigText('IN THE'), ...bigText('L∞P')])
     expect(t).toContain(l);
   expect(t).toContain('review-tui');
   expect(t).toContain('repo: o/r');

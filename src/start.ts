@@ -15,13 +15,20 @@ const FONT: Record<string, string[]> = {
   E: ['████', '█   ', '███ ', '█   ', '████'],
   L: ['█   ', '█   ', '█   ', '█   ', '████'],
   O: [' ███ ', '█   █', '█   █', '█   █', ' ███ '],
+  '∞': [
+    ' ███   ███ ',
+    '█   █ █   █',
+    '█    █    █',
+    '█   █ █   █',
+    ' ███   ███ ',
+  ],
   P: ['████ ', '█   █', '████ ', '█    ', '█    '],
 };
 
 /**
  * Renders a word in {@link FONT}.
  *
- * @param word Upper-case letters present in the font.
+ * @param word Letters present in the font; ∞ is the two O's of LOOP joined.
  * @return Five lines of block art.
  */
 export function bigText(word: string): string[] {
@@ -47,7 +54,7 @@ export function startPage(pr: PrInfo): StyledText[] {
   return [
     lines(bigText('IN THE').map((l) => row(l, 'muted'))),
     blank,
-    lines(bigText('LOOP').map((l) => row(l, 'accent', {bold: true}))),
+    lines(bigText('L∞P').map((l) => row(l, 'accent', {bold: true}))),
     blank,
     lines([row('review-tui', 'muted')]),
     blank,
