@@ -58,6 +58,29 @@ export function bigText(word: string, size: LogoSize = 'large'): string[] {
   );
 }
 
+/** Subtitle under the block letters. */
+const SUBTITLE = 'R E V I E W  -  T U I';
+
+/**
+ * The start-page logo as plain text, each block centred on the widest, for
+ * places without styling such as the README.
+ *
+ * @return The logo lines, without trailing spaces.
+ */
+export function logoText(): string[] {
+  const blocks = [bigText('IN THE', 'medium'), bigText('L∞P'), [SUBTITLE]];
+  const width = Math.max(...blocks.flat().map((l) => l.length));
+  return blocks.flatMap((b, i) => [
+    ...(i ? [''] : []),
+    ...b.map((l) => centre(l, width).trimEnd()),
+  ]);
+}
+
+/** Pads a line on the left to centre it in `width` columns. */
+function centre(line: string, width: number): string {
+  return ' '.repeat(Math.floor((width - line.length) / 2)) + line;
+}
+
 /**
  * Builds the start page: block-letter logo, subtitle, the PR's repo and head
  * branch, and the Enter prompt.
@@ -77,7 +100,7 @@ export function startPage(pr: PrInfo): StyledText[] {
     blank,
     lines(bigText('L∞P').map((l) => row(l, 'accent', {bold: true}))),
     blank,
-    lines([row('R E V I E W  -  T U I', 'muted', {bold: true})]),
+    lines([row(SUBTITLE, 'muted', {bold: true})]),
     blank,
     lines([[span('repo: ', 'muted'), span(`${pr.owner}/${pr.repo}`)]]),
     lines([[span('branch: ', 'muted'), span(pr.headRefName || '-')]]),
