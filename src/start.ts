@@ -1,14 +1,38 @@
-import type {TextChunk} from '@opentui/core';
+import type {StyledText, TextChunk} from '@opentui/core';
 import {lines, span, styled, type Tone} from './theme';
 import type {PrInfo} from './types';
-import type {StyledText} from '@opentui/core';
 
 /** Compact one-line logo kept in the top-right corner of every page. */
 export const CORNER_LOGO = '✻ In The Loop';
 
+/** Block letters for the start page logo, five rows each. */
+const FONT: Record<string, string[]> = {
+  ' ': ['   ', '   ', '   ', '   ', '   '],
+  I: ['███', ' █ ', ' █ ', ' █ ', '███'],
+  N: ['█   █', '██  █', '█ █ █', '█  ██', '█   █'],
+  T: ['█████', '  █  ', '  █  ', '  █  ', '  █  '],
+  H: ['█   █', '█   █', '█████', '█   █', '█   █'],
+  E: ['████', '█   ', '███ ', '█   ', '████'],
+  L: ['█   ', '█   ', '█   ', '█   ', '████'],
+  O: [' ███ ', '█   █', '█   █', '█   █', ' ███ '],
+  P: ['████ ', '█   █', '████ ', '█    ', '█    '],
+};
+
 /**
- * Builds the start page: logo, subtitle, the PR's repo and head branch, and
- * the Enter prompt.
+ * Renders a word in {@link FONT}.
+ *
+ * @param word Upper-case letters present in the font.
+ * @return Five lines of block art.
+ */
+export function bigText(word: string): string[] {
+  return [0, 1, 2, 3, 4].map((r) =>
+    [...word].map((ch) => FONT[ch]![r]!).join('  '),
+  );
+}
+
+/**
+ * Builds the start page: block-letter logo, subtitle, the PR's repo and head
+ * branch, and the Enter prompt.
  *
  * @param pr The PR the TUI was loaded with.
  * @return Content for a `TextRenderable`.
@@ -19,18 +43,12 @@ export function startPage(pr: PrInfo): StyledText {
     tone?: Tone,
     o?: {bold?: boolean},
   ): TextChunk[] => [span(text, tone, o)];
-  const art: TextChunk[][] = [
-    row('        ✻', 'accent', {bold: true}),
-    row('     ╲  │  ╱', 'accent'),
-    row('   ── ✻ ● ✻ ──', 'accent'),
-    row('     ╱  │  ╲', 'accent'),
-    row('        ✻', 'accent', {bold: true}),
-  ];
   return lines([
-    ...art,
+    ...bigText('IN THE').map((l) => row(l, 'muted')),
     [],
-    row('  I n   T h e   L o o p', 'accent', {bold: true}),
-    row('        review-tui', 'muted'),
+    ...bigText('LOOP').map((l) => row(l, 'accent', {bold: true})),
+    [],
+    row('review-tui', 'muted'),
     [],
     [span('repo: ', 'muted'), span(`${pr.owner}/${pr.repo}`)],
     [span('branch: ', 'muted'), span(pr.headRefName || '-')],

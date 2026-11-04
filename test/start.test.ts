@@ -2,7 +2,7 @@ import {expect, test} from 'bun:test';
 import {mkdtemp, mkdir} from 'node:fs/promises';
 import {tmpdir} from 'node:os';
 import {join} from 'node:path';
-import {CORNER_LOGO, startPage} from '../src/start';
+import {CORNER_LOGO, bigText, startPage} from '../src/start';
 import {openStore} from '../src/store';
 import type {PrInfo, State} from '../src/types';
 
@@ -24,7 +24,8 @@ const plain = (pr: PrInfo): string =>
 
 test('start page shows logo, subtitle, repo, branch and prompt', () => {
   const t = plain(pr);
-  expect(t).toContain('I n   T h e   L o o p');
+  for (const l of [...bigText('IN THE'), ...bigText('LOOP')])
+    expect(t).toContain(l);
   expect(t).toContain('review-tui');
   expect(t).toContain('repo: o/r');
   expect(t).toContain('branch: feat/x');
