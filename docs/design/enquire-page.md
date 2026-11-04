@@ -33,7 +33,7 @@ Non-goals
 
 Pages become: Checklist, Intention, **Enquire**, Comments, Review (←/→ switches, as today). The start page is unchanged.
 
-Enquire sits after Intention, and is **locked until the intention has passed**, the same way the Intention page locks after a pass. Reason: the Intention page checks that the reviewer understood the change themselves. If Enquire were open first, "what is this PR for?" would hand over the answer and bypass that check. Locked pages show a one-line reason, as the Review page does for its gates (`src/gates.ts`).
+Enquire sits after Intention. It is **never locked**: the reviewer can use Intention, Enquire and Comments in whatever order they need, and Enquire does not gate anything. The Intention page checks that the reviewer understood the change themselves, so the agent must not hand over that answer wherever the reviewer is in the flow. That is guardrail G5, enforced on every turn rather than by page order.
 
 Consequences of inserting a page:
 
@@ -44,6 +44,7 @@ Consequences of inserting a page:
 
 1. The page shows the current subject: `src/llm.ts:L42-48` (or just `src/llm.ts`, or nothing), taken live from the VS Code connection, in the same place and style as the Comments page.
 2. The reviewer types a question and presses Enter. The question is sent with the **subject as it was at the moment of Enter**, not as it changes later.
+   While waiting, the page shows a "thinking…" status whose colour glows (pulses through the theme's accent shades) so the reviewer can see it is working. Answers are not streamed, because the output checks need the whole answer.
 3. The question and a read-only excerpt of the selection are shown in the transcript, then the answer. An answer that cites code shows `path:line` references.
 4. The reviewer can keep asking. Selecting different code in VS Code changes the subject of the *next* question only; earlier turns keep the subject they were asked about, displayed as a header line on each turn.
 
@@ -102,7 +103,7 @@ The task asks whether the agent should volunteer issues. Decision: **no, with on
 - Carve-out: if the *answer to the question asked* depends on a defect in the code (asked "what does this return?" and it returns `undefined` on one path because of an obvious bug), the agent states the behaviour factually ("returns `undefined` when `items` is empty, see `src/a.ts:30`") without calling it a bug or recommending a change. The fact is part of the answer; the label is the reviewer's.
 - If the reviewer asks directly ("is there a bug here?", "could this be null?"), the agent answers the factual question under G2 and G6.
 
-Open question 1 asks whether the reviewer should be able to opt in to more proactive help.
+Proactive findings (for example a `/suggest` command) are deliberately left out for now; they may be considered later, labelled as the agent's own and never auto-saved as comments.
 
 ### How each rule is enforced
 
@@ -128,7 +129,7 @@ Unit tests (no model; `test/enquire-guard.test.ts`):
 - Over-length answer is truncated.
 - Citation to a missing file, or a line past the end of the file, is dropped and flagged.
 - Answer that copies 7+ consecutive words of the PR description is replaced.
-- Verdict phrases trigger the refusal; ordinary text containing similar words in quoted code ("approve()" function name) does not (once quoted code is excluded; see implementation note in task 3).
+- Verdict phrases trigger the refusal; ordinary text containing similar words in quoted code ("approve()" function name) does not (once quoted code is excluded; see implementation note in task 2).
 - Subject building: selection, file only, none, and `path:L10-20` prefix override; size limits.
 
 Eval cases (live model; pass/fail on a structural check where possible, and a printed answer for by-eye checks, like the judge eval's "no hint restates the intention"). Each rule has at least one case:
@@ -172,7 +173,7 @@ The reviewer's checkout may not be at the PR's head. review-tui today only fetch
 
 - If the working directory is a git checkout of the repo whose HEAD equals the PR head SHA (stored in `state.json`), tools read the working tree directly.
 - Otherwise the page runs in a degraded mode: the agent gets only the diff and the excerpts fetched via `gh api` for the subject file at the PR head SHA, with repo-wide search switched off, and the page says "repo search unavailable: checkout is not at the PR head". Questions like "where is this called from?" then get a G7 "I can't tell" answer.
-- A later improvement, a temporary `git worktree` at the PR head, is listed in open questions.
+- A later improvement, a temporary `git worktree` at the PR head, is listed under alternatives.
 
 The agent runs with `directory` set to that tree (not `REPO_ROOT` of review-tui as `ask()` does for the judge today), so the review-tui checkout itself is never exposed by mistake. The `.opencode/agents` file must still be found; OpenCode's config path handling is a task-1 investigation (see breakdown).
 
@@ -204,7 +205,7 @@ Proposal: **save questions and answers to the review directory, but treat them a
 - `reviews/` is already gitignored (`.gitignore`), so these are not committed.
 - A reviewer who wants to keep an insight writes it as a comment in their own words (optionally passing it through the SWE-7 tidy-up).
 
-Possible later feature (not proposed here): a read-only "Questions asked" count on the Review page. Open question 4.
+The Review page shows a read-only "Questions asked: N" count from this file, for transparency about how much the reviewer leaned on the agent. It shows the count only, not the content.
 
 ## Relationship to SWE-7 (comment tidy-up)
 
@@ -221,7 +222,7 @@ Both features send the reviewer's own text plus a selection to a read-only agent
 
 Shared pieces, to build once and reuse (these are the consistent-behaviour points):
 
-- **Subject** type and builder: `{path, startLine, endLine, text}` from the VS Code selection, or typed `path:line`, with the same fallbacks and the same size caps. Task 1 below creates this; SWE-7 should use it rather than invent its own. If SWE-7 lands first, task 1 extracts it from there instead.
+- **Subject** type and builder: `{path, startLine, endLine, text}` from the VS Code selection, or typed `path:line`, with the same fallbacks and the same size caps. Task 5 below creates this; SWE-7 should use it rather than invent its own. If SWE-7 lands first, task 1 extracts it from there instead.
 - **Prompt fencing and failure behaviour**: tags around reviewer text and code, our own text on failure, fail closed.
 - **ask() plumbing** in `src/llm.ts`: both need an `agent` parameter. Today `ask()` hard-codes `review-judge`. This is a small refactor to do once.
 - **Eval layout**: `scripts/eval-*.ts`, one script per feature, same output style.
@@ -233,36 +234,32 @@ Differences are deliberate: tidy-up *rewrites the reviewer's words*, so its safe
 
 1. **Reuse the judge agent with different task headers.** Smallest change, but the judge's prompt is about verdicts and hints; the two behaviours want opposite things (withhold vs explain). Separate agents also allow different tool permissions (Enquire needs `read`/`grep`). Rejected.
 2. **Free chat with no structured output.** Simplest, and the model's prose is more natural. Rejected because output checks (citation validity, `unknown` flag) need structure, and it is easier to loosen guardrails later than add them.
-3. **Open the page from the start (not locked behind Intention).** Friendlier, but lets the reviewer dodge the Intention check. Rejected for now; open question 2.
+3. **Lock the page until the intention has passed.** Would protect the Intention check by page order, but reviewers work in whatever order they need, and one stuck on the intention could not ask what a function does. Rejected; G5 protects the check instead.
 4. **Tools read the reviewer's current checkout whatever its state.** Simplest, but can silently answer about the wrong version of the code. Rejected in favour of the HEAD check and degraded mode.
 5. **Fetch the PR head into a temporary worktree always.** Most accurate, more moving parts (disk, cleanup, large repos). Deferred as an improvement.
 6. **Answer only from the selection and diff (no repo tools).** Safest and cheapest, but then "where is this called from?" is not answerable, which is one of the three headline examples in SWE-8. Kept as the degraded mode.
-7. **Let the agent proactively flag issues, behind a toggle.** Possible, but undermines the point of the tool unless done carefully. Deferred; open question 1.
+7. **Let the agent proactively flag issues, behind a toggle.** Possible, but undermines the point of the tool unless done carefully. Deferred; maybe later.
 8. **Feed Enquire history into the Review page feedback.** Rejected above.
 9. **A second LLM to check the first one's answer for verdict language.** More robust than a phrase list, but doubles cost and latency and adds a second failure mode. Deferred; try the cheap filter plus evals first.
 
 ## Open questions
 
-1. Should the reviewer be able to opt in to proactive findings (for example `/suggest`) later? If so, they should be labelled as the agent's and not auto-saved as comments.
-2. Is locking the page behind a passed intention right? It protects the Intention check, but a reviewer who is stuck on the intention cannot ask what a function does. A middle path: allow Enquire before the intention passes, with G5 (and a stricter "no PR-level explanations") enforced. This doubles the cases to test.
-3. Should past answers be given back to the model after a relaunch? Better continuity vs stale answers after new pushes. Proposal says no.
-4. Should the Review page show how many questions were asked? Useful transparency, but might nudge reviewers to ask fewer questions.
-5. Does OpenCode load project agents and resolve tool permissions when `directory` points at a tree other than review-tui's own? Needs checking in task 1; the fallback is to pass the agent definition inline via config.
-6. How large are the repos reviewers use this on? Size limits and the `grep` tool cost on a monorepo are guesses.
-7. Should `$MODEL` apply to Enquire exactly as to the judge? Proposal: yes, same model, same prefix source, since it already applies to every prompt.
-8. Streaming: the SDK may allow showing the answer as it arrives, but the output checks need the whole answer. Proposal: no streaming; show a "thinking…" status.
+1. Does OpenCode load project agents and resolve tool permissions when `directory` points at a tree other than review-tui's own? Needs checking in task 3; the fallback is to pass the agent definition inline via config.
+2. Should past answers be given back to the model after a relaunch? Better continuity vs stale answers after new pushes. Proposal says no.
+3. How large are the repos reviewers use this on? Size limits and the `grep` tool cost on a monorepo are guesses.
+4. Should `$MODEL` apply to Enquire exactly as to the judge? Proposal: yes, same model, same prefix source, since it already applies to every prompt.
+
+Decided in review: no proactive findings for now (maybe later); Enquire is never locked; the Review page shows a count of questions asked; no streaming, with a glowing "thinking" status instead.
 
 ## Proposed task breakdown
 
 One PR each, in dependency order. Each is added to the board under SWE-8.
 
-1. **Agent plumbing and `Subject`**: add an `agent` parameter to `ask()` in `src/llm.ts`; create `src/subject.ts` with the `Subject` type, builder (selection, file only, none, typed `path:line` prefix) and size caps; unit tests. Includes the investigation of open question 5 (agent discovery with a different `directory`). Shared with SWE-7.
-2. **Enquire agent and prompt**: `.opencode/agents/review-enquire.md` with the permissions in this doc; prompt builder and `enquire()` in `src/enquire.ts` taking an injectable `Ask`, as `judgeIntention` does; JSON schema; basic path, no guards yet. Unit tests with a fake `Ask`, including a test that the agent file denies edit/bash/web/task/question.
-3. **Output guards**: `src/enquire-guard.ts` (fail-closed parse, length cap, citation validation against the checkout, PR-description copy check, verdict-phrase backstop) with unit tests for every item in "Testing".
-4. **Eval harness**: `scripts/eval-enquire.ts`, `bun run eval:enquire`, fixture repo, and the cases above. Lands before the UI so guardrail regressions are visible first. README mentions it.
-5. **Code access**: PR-head check, degraded mode, `directory` handling, and context assembly (excerpt, diff slice, truncation markers). Unit tests with a temporary git repo.
-6. **Enquire page UI**: add the page and its lock, transcript view, subject line, input, unavailable and `/clear` handling, `state.page` migration; no persistence yet. Manual TUI test on a real PR with VS Code.
-7. **History**: `enquiries.jsonl` append and resume display; tests for write and read, and that nothing reaches `comments.md` or the review payload.
-8. **Docs and release**: README section, CHANGELOG entry and version bump. This may be folded into task 6 or 7 if the repo's per-ticket changelog convention applies there.
+1. **Enquire page, end to end (smallest working slice)**: select a line of code in VS Code and ask about it as soon as possible. Adds the Enquire page (never locked; `state.page` migration) with a subject line from the VS Code selection (SWE-4), a question input, and an answer view with the "thinking" status; an `agent` parameter on `ask()`; `.opencode/agents/review-enquire.md` with the read-only permissions and the G1–G11 rules in its prompt; and `enquire()` in `src/enquire.ts` (injectable `Ask`, plain-text answer) which sends the question, the selected text and the PR diff, and shows our own text on failure. Not in this PR: structured output, code-side guards, repo tools, history, typed `path:line`, size limits beyond a simple cap, and the Review-page count. Tests: prompt building and failure handling with a fake `Ask`, and a test that the agent file denies edit/bash/web/task/question. Manual test on a real PR with VS Code.
+2. **Output guards**: `src/enquire-guard.ts` (fail-closed parse, length cap, citation validation against the checkout, PR-description copy check, verdict-phrase backstop), switching the agent to structured output, with unit tests for every item in "Testing".
+3. **Repo access and context**: PR-head check, degraded mode, `directory` handling, read-only repo tools, and context assembly (file excerpt, diff slice, size limits and truncation markers). Includes open question 1. Unit tests with a temporary git repo.
+4. **Eval harness**: `scripts/eval-enquire.ts`, `bun run eval:enquire`, fixture repo, and the cases above. README mentions it. Can start right after task 1 and grows as guards land.
+5. **Typed subject and no-VS-Code mode**: `src/subject.ts` with the shared `Subject` type, the `path:L10-20 question` prefix, and file-only and no-subject behaviour. Shared with SWE-7 (extract from it if it lands first).
+6. **History and Review-page count**: `enquiries.jsonl` append, resume display, `/clear`, and the "Questions asked" count; tests that nothing reaches `comments.md` or the review payload.
 
-Order: 1, then 2, 3, 4 and 5 can proceed in parallel after 1 (4 needs 2 and 3), then 6, then 7, then 8. Tasks 2 to 5 have no user-visible change and are testable without the UI.
+README and CHANGELOG updates (with a version bump) go in each PR, following the per-ticket convention. Tasks 2 to 6 can proceed in parallel after task 1.
