@@ -6,6 +6,20 @@ uses [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.6.1] - 2026-11-04 (SWE-18)
+
+### Changed
+
+- README reorganised under headings (requirements, install, a page-by-page
+  walkthrough with key tables, VS Code, configuration, state and files,
+  development) and now opens with the start-page logo, shown as an image in the
+  start page's colours. "(walking skeleton)" dropped from the heading.
+
+### Added
+
+- `bun scripts/logo.ts` regenerates `docs/logo.svg` from `src/start.ts`
+  (`logoBlocks()`); a test fails if it is out of date.
+
 ## [0.6.0] - 2026-11-04 (SWE-12)
 
 ### Added

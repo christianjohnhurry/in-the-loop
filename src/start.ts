@@ -58,6 +58,27 @@ export function bigText(word: string, size: LogoSize = 'large'): string[] {
   );
 }
 
+/** A run of logo lines and how the start page colours them. */
+export interface LogoBlock {
+  lines: string[];
+  tone: Tone;
+  bold: boolean;
+}
+
+/**
+ * The start-page logo, top to bottom: IN THE, LOOP, then the subtitle. Shared
+ * by the start page and the README's logo image so they cannot drift.
+ *
+ * @return The logo blocks, uncentred.
+ */
+export function logoBlocks(): LogoBlock[] {
+  return [
+    {lines: bigText('IN THE', 'medium'), tone: 'muted', bold: false},
+    {lines: bigText('L∞P'), tone: 'accent', bold: true},
+    {lines: ['R E V I E W  -  T U I'], tone: 'muted', bold: true},
+  ];
+}
+
 /**
  * Builds the start page: block-letter logo, subtitle, the PR's repo and head
  * branch, and the Enter prompt.
@@ -72,13 +93,12 @@ export function startPage(pr: PrInfo): StyledText[] {
     o?: {bold?: boolean},
   ): TextChunk[] => [span(text, tone, o)];
   const blank = lines([row(' ')]);
+  const logo = logoBlocks().flatMap((b) => [
+    lines(b.lines.map((l) => row(l, b.tone, {bold: b.bold}))),
+    blank,
+  ]);
   return [
-    lines(bigText('IN THE', 'medium').map((l) => row(l, 'muted'))),
-    blank,
-    lines(bigText('L∞P').map((l) => row(l, 'accent', {bold: true}))),
-    blank,
-    lines([row('R E V I E W  -  T U I', 'muted', {bold: true})]),
-    blank,
+    ...logo,
     lines([[span('repo: ', 'muted'), span(`${pr.owner}/${pr.repo}`)]]),
     lines([[span('branch: ', 'muted'), span(pr.headRefName || '-')]]),
     blank,
