@@ -6,6 +6,8 @@ uses [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.5.0] - 2026-11-04 (SWE-11)
+
 ### Added
 
 - Start page: on launch (and on resume) review-tui shows the In The Loop
@@ -18,16 +20,23 @@ uses [Semantic Versioning](https://semver.org/).
   `$MODEL` unset, OpenCode's default is kept and the prefix shows the model
   OpenCode reports (not `opencode-default`). A malformed `$MODEL` is rejected at
   startup; an unknown model fails closed like any other judge error.
+## [0.3.0] - 2026-11-02 (SWE-4)
+
+### Added
+
 - VS Code extension (`vscode-extension/`): local WebSocket server that
   publishes the active file and selection, discovered via
   `~/.review-tui/ide/<port>.lock`. Protocol in `docs/ide-protocol.md`. review-tui
-  review-tui
   now uses it (below).
 - review-tui connects to the extension (`src/ide.ts`): `/ide` command and
   auto-connect, shows the active file/selection on the Comments page, and
   targets new comments at the selection. Multi-line comments are stored as
   `path:L42-48` in `comments.md` and sent with `start_line`/`line`. Selections
   outside the PR diff are rejected; VS Code closing mid-session is handled.
+## [0.2.0] - 2026-11-02 (SWE-3)
+
+### Added
+
 - Colour theme (`src/theme.ts`): terracotta accent, muted greys, green/amber/red
   for pass, retry and errors. No backgrounds are set, so it suits dark and
   light terminals; text markers (`[x]`, `>`, pass/retry, Locked) are kept.
@@ -62,5 +71,9 @@ First walking skeleton (SWE-2): all four pages, end to end, on one PR.
   tests, a live judge eval (`bun run eval:judge`) and a pull request
   template.
 
-[Unreleased]: https://github.com/christianjohnhurry/in-the-loop/compare/v0.1.0...HEAD
+[Unreleased]: https://github.com/christianjohnhurry/in-the-loop/compare/v0.5.0...HEAD
+[0.5.0]: https://github.com/christianjohnhurry/in-the-loop/compare/v0.4.0...v0.5.0
+[0.4.0]: https://github.com/christianjohnhurry/in-the-loop/compare/v0.3.0...v0.4.0
+[0.3.0]: https://github.com/christianjohnhurry/in-the-loop/compare/v0.2.0...v0.3.0
+[0.2.0]: https://github.com/christianjohnhurry/in-the-loop/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/christianjohnhurry/in-the-loop/releases/tag/v0.1.0
