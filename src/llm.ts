@@ -1,6 +1,7 @@
 import {resolve} from 'node:path';
 import {createOpencode, createOpencodeClient} from '@opencode-ai/sdk/v2';
 import {parseVerdict} from './guard';
+import {modelLabel, type ModelRef} from './model';
 import type {Verdict} from './types';
 
 const AGENT = 'review-judge';
@@ -35,6 +36,28 @@ async function getClient(): Promise<Connection> {
   return (cached = made);
 }
 
+let requested: ModelRef | undefined;
+let reported: ModelRef | undefined;
+
+/**
+ * Sets the model every prompt runs on; unset keeps OpenCode's default.
+ *
+ * @param model The model to request, or undefined for the default.
+ */
+export function setModel(model: ModelRef | undefined): void {
+  requested = model;
+}
+
+/**
+ * Names the model for the review prefix: the requested one, else the one
+ * OpenCode last reported running.
+ *
+ * @return `provider/model`, or `unknown` if nothing has run yet.
+ */
+export function currentModelLabel(): string {
+  return modelLabel(requested, reported);
+}
+
 /** Stops the OpenCode server we spawned, if any. */
 export function closeLlm(): void {
   cached?.close?.();
@@ -62,6 +85,7 @@ async function ask(
       sessionID: session.data.id,
       directory: REPO_ROOT,
       agent: AGENT,
+      ...(requested ? {model: requested} : {}),
       parts: [{type: 'text', text: prompt}],
       ...(schema
         ? {format: {type: 'json_schema' as const, schema: schema as never}}
@@ -70,9 +94,20 @@ async function ask(
     {throwOnError: true},
   );
   const data = res.data as {
-    info?: {structured?: unknown};
+    info?: {
+      structured?: unknown;
+      error?: {name: string};
+      providerID?: string;
+      modelID?: string;
+    };
     parts?: {type: string; text?: string}[];
   };
+  // An unknown model comes back as an error on the message, not an HTTP
+  // failure; throw so the callers' existing failure handling applies.
+  if (data.info?.error) throw new Error(data.info.error.name);
+  if (data.info?.providerID && data.info.modelID) {
+    reported = {providerID: data.info.providerID, modelID: data.info.modelID};
+  }
   if (data.info?.structured !== undefined) return data.info.structured;
   return (data.parts ?? [])
     .filter((p) => p.type === 'text')
