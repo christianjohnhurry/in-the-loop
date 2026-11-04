@@ -85,10 +85,20 @@ export async function runTui(store: Store, opts: TuiOptions): Promise<void> {
   topBar.add(logo);
   const header = new TextRenderable(renderer, {content: '', visible: false});
   const body = new TextRenderable(renderer, {content: '', flexGrow: 1});
+  const splash = new BoxRenderable(renderer, {
+    flexDirection: 'column',
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexGrow: 1,
+    visible: false,
+  });
+  for (const content of startPage(state.pr))
+    splash.add(new TextRenderable(renderer, {content}));
   const status = new TextRenderable(renderer, {content: ''});
   const input = new InputRenderable(renderer, {width: '100%', placeholder: ''});
   const footer = new TextRenderable(renderer, {content: ''});
-  for (const r of [topBar, header, body, status, input, footer]) root.add(r);
+  for (const r of [topBar, header, body, splash, status, input, footer])
+    root.add(r);
   renderer.root.add(root);
 
   let started = false; // false while the start page is showing
@@ -188,9 +198,10 @@ export async function runTui(store: Store, opts: TuiOptions): Promise<void> {
     const comments = parseInline(md);
     const gates = reviewGates(state, comments);
     topBar.visible = started;
+    body.visible = started;
+    splash.visible = !started;
     header.visible = started;
     if (!started) {
-      body.content = startPage(state.pr);
       status.content = styled(span(''));
       footer.content = styled(span('Enter start · Ctrl+C quit', 'muted'));
       input.visible = false;

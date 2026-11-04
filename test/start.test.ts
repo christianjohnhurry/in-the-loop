@@ -19,8 +19,8 @@ const pr: PrInfo = {
 
 const plain = (pr: PrInfo): string =>
   startPage(pr)
-    .chunks.map((c) => c.text)
-    .join('');
+    .map((b) => b.chunks.map((c) => c.text).join(''))
+    .join('\n');
 
 test('start page shows logo, subtitle, repo, branch and prompt', () => {
   const t = plain(pr);

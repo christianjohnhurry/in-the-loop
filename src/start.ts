@@ -35,26 +35,27 @@ export function bigText(word: string): string[] {
  * branch, and the Enter prompt.
  *
  * @param pr The PR the TUI was loaded with.
- * @return Content for a `TextRenderable`.
+ * @return Blocks to stack top to bottom, each centred as a unit by the layout.
  */
-export function startPage(pr: PrInfo): StyledText {
+export function startPage(pr: PrInfo): StyledText[] {
   const row = (
     text: string,
     tone?: Tone,
     o?: {bold?: boolean},
   ): TextChunk[] => [span(text, tone, o)];
-  return lines([
-    ...bigText('IN THE').map((l) => row(l, 'muted')),
-    [],
-    ...bigText('LOOP').map((l) => row(l, 'accent', {bold: true})),
-    [],
-    row('review-tui', 'muted'),
-    [],
-    [span('repo: ', 'muted'), span(`${pr.owner}/${pr.repo}`)],
-    [span('branch: ', 'muted'), span(pr.headRefName || '-')],
-    [],
-    row('Press Enter to start', 'accent', {bold: true}),
-  ]);
+  const blank = lines([row(' ')]);
+  return [
+    lines(bigText('IN THE').map((l) => row(l, 'muted'))),
+    blank,
+    lines(bigText('LOOP').map((l) => row(l, 'accent', {bold: true}))),
+    blank,
+    lines([row('review-tui', 'muted')]),
+    blank,
+    lines([[span('repo: ', 'muted'), span(`${pr.owner}/${pr.repo}`)]]),
+    lines([[span('branch: ', 'muted'), span(pr.headRefName || '-')]]),
+    blank,
+    lines([row('Press Enter to start', 'accent', {bold: true})]),
+  ];
 }
 
 /** The corner logo as styled text. */
