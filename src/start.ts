@@ -5,7 +5,7 @@ import type {PrInfo} from './types';
 /** Compact one-line logo kept in the top-right corner of every page. */
 export const CORNER_LOGO = '✻ In The Loop';
 
-/** Block letters for the start page logo, five rows each. */
+/** Block letters for LOOP, five rows each. */
 const FONT: Record<string, string[]> = {
   ' ': ['   ', '   ', '   ', '   ', '   '],
   I: ['███', ' █ ', ' █ ', ' █ ', '███'],
@@ -16,13 +16,6 @@ const FONT: Record<string, string[]> = {
   L: ['█   ', '█   ', '█   ', '█   ', '████'],
   O: [' ███ ', '█   █', '█   █', '█   █', ' ███ '],
   '∞': [
-    ' ███   ███ ',
-    '█   █ █   █',
-    '█    █    █',
-    '█   █ █   █',
-    ' ███   ███ ',
-  ],
-  '∞': [
     '  ███   ███  ',
     ' █   █ █   █ ',
     '█     █     █',
@@ -32,15 +25,28 @@ const FONT: Record<string, string[]> = {
   P: ['████ ', '█   █', '████ ', '█    ', '█    '],
 };
 
+/** Smaller letters for IN THE, three rows each. */
+const SMALL: Record<string, string[]> = {
+  ' ': ['  ', '  ', '  '],
+  I: ['▀█▀', ' █ ', '▄█▄'],
+  N: ['█▄ █', '█ ▀█', '█  █'],
+  T: ['▀█▀', ' █ ', ' █ '],
+  H: ['█ █', '█▀█', '█ █'],
+  E: ['█▀▀', '█▀▀', '█▄▄'],
+};
+
 /**
- * Renders a word in {@link FONT}.
+ * Renders a word in {@link FONT}, or in {@link SMALL} when `small`.
  *
  * @param word Letters present in the font; ∞ is the two O's of LOOP joined.
- * @return Five lines of block art.
+ * @param small Use the three-row font.
+ * @return Lines of block art.
  */
-export function bigText(word: string): string[] {
-  return [0, 1, 2, 3, 4].map((r) =>
-    [...word].map((ch) => FONT[ch]![r]!).join('  '),
+export function bigText(word: string, small = false): string[] {
+  const font = small ? SMALL : FONT;
+  const rows = small ? [0, 1, 2] : [0, 1, 2, 3, 4];
+  return rows.map((r) =>
+    [...word].map((ch) => font[ch]![r]!).join(small ? ' ' : '  '),
   );
 }
 
@@ -59,7 +65,7 @@ export function startPage(pr: PrInfo): StyledText[] {
   ): TextChunk[] => [span(text, tone, o)];
   const blank = lines([row(' ')]);
   return [
-    lines(bigText('IN THE').map((l) => row(l, 'muted'))),
+    lines(bigText('IN THE', true).map((l) => row(l, 'muted'))),
     blank,
     lines(bigText('L∞P').map((l) => row(l, 'accent', {bold: true}))),
     blank,
