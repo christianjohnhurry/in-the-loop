@@ -25,8 +25,8 @@ const FONT: Record<string, string[]> = {
   P: ['████ ', '█   █', '████ ', '█    ', '█    '],
 };
 
-/** Smaller letters for IN THE, three rows each. */
-const SMALL: Record<string, string[]> = {
+/** Medium letters for IN THE, three rows each. */
+const MEDIUM: Record<string, string[]> = {
   ' ': ['  ', '  ', '  '],
   I: ['▀█▀', ' █ ', '▄█▄'],
   N: ['█▄ █', '█ ▀█', '█  █'],
@@ -35,18 +35,40 @@ const SMALL: Record<string, string[]> = {
   E: ['█▀▀', '█▀▀', '█▄▄'],
 };
 
+/** Smallest letters for the review-tui subtitle, two rows each. */
+const SMALL: Record<string, string[]> = {
+  ' ': ['  ', '  '],
+  '-': ['▄▄▄', '   '],
+  r: ['█▀▀', '█  '],
+  e: ['█▀▀', '█▄▄'],
+  v: ['█ █', '▀▄▀'],
+  i: ['▀', '█'],
+  w: ['█ █ █', '▀▄▀▄▀'],
+  t: ['▀█▀', ' █ '],
+  u: ['█ █', '█▄█'],
+};
+
+/** Logo sizes: the letters and the gap between them. */
+const FONTS = {
+  large: {glyphs: FONT, gap: '  '},
+  medium: {glyphs: MEDIUM, gap: ' '},
+  small: {glyphs: SMALL, gap: ' '},
+};
+
+/** Name of a size in {@link FONTS}. */
+export type LogoSize = keyof typeof FONTS;
+
 /**
- * Renders a word in {@link FONT}, or in {@link SMALL} when `small`.
+ * Renders a word in block letters.
  *
  * @param word Letters present in the font; ∞ is the two O's of LOOP joined.
- * @param small Use the three-row font.
+ * @param size Which font: large (5 rows), medium (3) or small (2).
  * @return Lines of block art.
  */
-export function bigText(word: string, small = false): string[] {
-  const font = small ? SMALL : FONT;
-  const rows = small ? [0, 1, 2] : [0, 1, 2, 3, 4];
-  return rows.map((r) =>
-    [...word].map((ch) => font[ch]![r]!).join(small ? ' ' : '  '),
+export function bigText(word: string, size: LogoSize = 'large'): string[] {
+  const {glyphs, gap} = FONTS[size];
+  return glyphs[' ']!.map((_, r) =>
+    [...word].map((ch) => glyphs[ch]![r]!).join(gap),
   );
 }
 
@@ -65,11 +87,11 @@ export function startPage(pr: PrInfo): StyledText[] {
   ): TextChunk[] => [span(text, tone, o)];
   const blank = lines([row(' ')]);
   return [
-    lines(bigText('IN THE', true).map((l) => row(l, 'muted'))),
+    lines(bigText('IN THE', 'medium').map((l) => row(l, 'muted'))),
     blank,
     lines(bigText('L∞P').map((l) => row(l, 'accent', {bold: true}))),
     blank,
-    lines([row('review-tui', 'muted')]),
+    lines(bigText('review-tui', 'small').map((l) => row(l, 'muted'))),
     blank,
     lines([[span('repo: ', 'muted'), span(`${pr.owner}/${pr.repo}`)]]),
     lines([[span('branch: ', 'muted'), span(pr.headRefName || '-')]]),
