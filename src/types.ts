@@ -23,6 +23,8 @@ export interface Verdict {
 /** Everything persisted in state.json so a review can be resumed. */
 export interface State {
   pr: PrInfo;
+  /** state.json format; absent in files saved before the Enquire page. */
+  version?: number;
   /** Index of the page the reviewer was last on. */
   page: number;
   /** Checklist item id to ticked. */

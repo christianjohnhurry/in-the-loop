@@ -75,3 +75,20 @@ export function lines(lines: (TextChunk | string)[][]): StyledText {
   });
   return styled(...out);
 }
+
+/** Accent shades the "thinking…" status pulses through. */
+const GLOW = ['#8E4F39', '#B5644A', '#D97757', '#E8957A', '#D97757', '#B5644A'];
+
+/**
+ * Builds a chunk whose colour depends on `step`, so redrawing with a rising
+ * step makes the text glow.
+ *
+ * @param text The text to show.
+ * @param step Animation step; any integer.
+ * @return A chunk for {@link styled}.
+ */
+export function glow(text: string, step: number): TextChunk {
+  return bold(
+    fg(GLOW[((step % GLOW.length) + GLOW.length) % GLOW.length]!)(text),
+  );
+}

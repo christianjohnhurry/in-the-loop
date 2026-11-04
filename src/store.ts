@@ -14,6 +14,24 @@ export interface Store {
   save(): Promise<void>;
 }
 
+/** Current state.json format. 2 inserted the Enquire page at index 2. */
+export const STATE_VERSION = 2;
+
+/**
+ * Upgrades a parsed state.json in place. Version 1 (no `version` field) had
+ * no Enquire page, so saved indices >= 2 move up by one.
+ *
+ * @param state The parsed state.json.
+ * @return The same object, at the current version.
+ */
+export function migrateState(state: State): State {
+  if ((state.version ?? 1) < 2) {
+    if (state.page >= 2) state.page += 1;
+    state.version = STATE_VERSION;
+  }
+  return state;
+}
+
 const COMMENTS_HEADER =
   '# Review comments\n\n## Intention\n\n## General\n\n## Inline\n';
 
@@ -36,7 +54,7 @@ export async function openStore(root: string, url: string): Promise<Store> {
   let state: State;
   let diff: string;
   if (existsSync(statePath)) {
-    state = await Bun.file(statePath).json();
+    state = migrateState(await Bun.file(statePath).json());
     diff = await Bun.file(join(dir, 'diff.patch')).text();
     if (!state.pr.headRefName) {
       // Saved before the branch was stored: refetch, but don't fail offline.
@@ -50,6 +68,7 @@ export async function openStore(root: string, url: string): Promise<Store> {
     const fetched = await fetchPr(url);
     diff = fetched.diff;
     state = {
+      version: STATE_VERSION,
       pr: fetched.pr,
       page: 0,
       checklist: {},

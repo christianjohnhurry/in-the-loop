@@ -4,7 +4,7 @@ import {parseVerdict} from './guard';
 import {modelLabel, type ModelRef} from './model';
 import type {Verdict} from './types';
 
-const AGENT = 'review-judge';
+const JUDGE_AGENT = 'review-judge';
 const REPO_ROOT = resolve(import.meta.dir, '..');
 
 /** Everything the judge sees. */
@@ -65,15 +65,17 @@ export function closeLlm(): void {
 }
 
 /**
- * Sends one prompt to the read-only review agent in a fresh session.
+ * Sends one prompt to a read-only review agent in a fresh session.
  *
  * @param prompt The full prompt text.
  * @param schema Optional JSON schema to request structured output.
+ * @param agent Name of the agent file in `.opencode/agents/`.
  * @return Structured output if the model produced it, else its text.
  */
-async function ask(
+export async function ask(
   prompt: string,
   schema?: Record<string, unknown>,
+  agent: string = JUDGE_AGENT,
 ): Promise<unknown> {
   const {client} = await getClient();
   const session = await client.session.create(
@@ -84,7 +86,7 @@ async function ask(
     {
       sessionID: session.data.id,
       directory: REPO_ROOT,
-      agent: AGENT,
+      agent,
       ...(requested ? {model: requested} : {}),
       parts: [{type: 'text', text: prompt}],
       ...(schema

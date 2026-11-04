@@ -1,6 +1,6 @@
 # Enquire page design
 
-Status: proposed (SWE-9, for project SWE-8). Nothing here is implemented yet.
+Status: proposed (SWE-9, for project SWE-8). Task 1 (SWE-12, the walking skeleton) is implemented; the rest is not.
 
 ## Summary
 

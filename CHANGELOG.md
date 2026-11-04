@@ -6,6 +6,27 @@ uses [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.6.0] - 2026-11-04 (SWE-12)
+
+### Added
+
+- Enquire page between Intention and Comments (design: `docs/design/enquire-page.md`).
+  Select code in VS Code, type a question and Enter; the page shows the
+  subject (`path:L10-20`), your question with an excerpt of the selection, and
+  the model's plain-text answer, with a glowing "thinking…" status while it
+  works. It is never locked and not a Review gate. `/ide` works here too.
+  Answers are not saved and are not sent to the Review page or GitHub. This is
+  the walking skeleton: no output guards, repo search or history yet.
+- `.opencode/agents/review-enquire.md`: a separate read-only agent (edit, bash,
+  web, task, question, and for now read/grep/glob/list denied) with the design
+  doc's rules G1 to G11 in its prompt.
+
+### Changed
+
+- `state.json` now has a `version` field. Files saved before it (version 1) are
+  migrated on open: saved pages at or after Comments move up one, so a resumed
+  review lands on the same page as before.
+
 ## [0.5.0] - 2026-11-04 (SWE-11)
 
 ### Added
