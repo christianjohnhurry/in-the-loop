@@ -224,9 +224,18 @@ export async function reviewComments(
  * Asks OpenCode which models the reviewer can use (configured and
  * authenticated providers only) and which it defaults to.
  *
+ * The request is made once and shared, so it can be started early.
+ *
  * @return The providers, their defaults and the configured model.
  */
-export async function fetchProviders(): Promise<ProviderListing> {
+export function fetchProviders(): Promise<ProviderListing> {
+  return (listing ??= loadProviders());
+}
+
+let listing: Promise<ProviderListing> | undefined;
+
+/** Does the work for {@link fetchProviders}, once. */
+async function loadProviders(): Promise<ProviderListing> {
   const {client} = await getClient();
   const [providers, config] = await Promise.all([
     client.config.providers({directory: REPO_ROOT}, {throwOnError: true}),
