@@ -93,7 +93,7 @@ export interface ModelView {
   error?: string;
   /** True until the model list has loaded or failed. */
   loading: boolean;
-  /** True once models are listed, so `m` opens the picker. */
+  /** True unless listing failed, so `m` opens the picker. */
   pickable?: boolean;
   /** The open picker, or undefined when it is closed. */
   picker?: {
@@ -182,7 +182,14 @@ function pickerBlock(model: ModelView): StyledText {
             span(` ${o.name}`, 'muted'),
           ];
         })
-      : [[span('  no models match', 'muted')]]),
+      : [
+          [
+            span(
+              model.loading ? '  loading models…' : '  no models match',
+              'muted',
+            ),
+          ],
+        ]),
     [
       span(
         `${p.options.length ? p.cursor + 1 : 0}/${p.options.length}`,

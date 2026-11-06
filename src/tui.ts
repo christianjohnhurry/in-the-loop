@@ -131,12 +131,22 @@ export async function runTui(store: Store, opts: TuiOptions): Promise<void> {
   /** Picker rows that fit under the logo. */
   const pickerRows = (): number =>
     Math.max(3, Math.min(10, renderer.height - 24));
+  /** Index of the selected model in the full list; 0 if absent. */
+  const selectedIndex = (): number =>
+    Math.max(
+      0,
+      models.findIndex(
+        (o) =>
+          o.providerID === selectedModel?.providerID &&
+          o.modelID === selectedModel?.modelID,
+      ),
+    );
   const modelView = (): ModelView => {
     const options = filterModels(models, picker?.query ?? '');
     return {
       selected: selectedModel,
       loading: modelsLoading,
-      pickable: models.length > 0,
+      pickable: !modelsError,
       error: modelsError,
       picker: picker && {
         query: picker.query,
@@ -321,7 +331,7 @@ export async function runTui(store: Store, opts: TuiOptions): Promise<void> {
         span(
           picker
             ? 'type to filter · ↑/↓ move · Enter select · Esc cancel'
-            : `Enter start ${models.length ? '· m change model ' : ''}· Ctrl+C quit`,
+            : `Enter start ${modelsError ? '' : '· m change model '}· Ctrl+C quit`,
           'muted',
         ),
       );
@@ -721,14 +731,8 @@ export async function runTui(store: Store, opts: TuiOptions): Promise<void> {
       if (key.name === 'return') {
         started = true;
         await draw();
-      } else if (key.name === 'm' && models.length) {
-        picker = {query: '', cursor: 0};
-        const i = models.findIndex(
-          (o) =>
-            o.providerID === selectedModel?.providerID &&
-            o.modelID === selectedModel?.modelID,
-        );
-        picker.cursor = Math.max(0, i);
+      } else if (key.name === 'm' && !modelsError) {
+        picker = {query: '', cursor: selectedIndex()};
         await draw();
       }
       return;
@@ -797,6 +801,7 @@ export async function runTui(store: Store, opts: TuiOptions): Promise<void> {
       modelsError = (e as Error).message || 'OpenCode unavailable';
     }
     modelsLoading = false;
+    if (picker && !picker.query) picker.cursor = selectedIndex();
     if (!started) await draw();
   })();
 

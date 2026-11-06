@@ -86,18 +86,19 @@ test('start page says OpenCode default while no model is selected', () => {
   expect(plain(pr, {...none, loading: true})).toContain('model: loading…');
 });
 
-test('start page offers m to pick a model only once models are listed', () => {
+test('start page offers m to pick a model unless listing failed', () => {
   expect(plain(pr, closed)).not.toContain('Press m');
   expect(plain(pr, {...closed, pickable: true})).toContain(
     'Press m to select model',
   );
+  expect(plain(pr, {...closed, pickable: false})).not.toContain('Press m');
+  const open = {query: '', options: [], cursor: 0, rows: 5};
+  expect(plain(pr, {...closed, pickable: true, picker: open})).not.toContain(
+    'Press m',
+  );
   expect(
-    plain(pr, {
-      ...closed,
-      pickable: true,
-      picker: {query: '', options: [], cursor: 0, rows: 5},
-    }),
-  ).not.toContain('Press m');
+    plain(pr, {...closed, loading: true, pickable: true, picker: open}),
+  ).toContain('loading models…');
 });
 
 test('hint lines are centred on each other', () => {
