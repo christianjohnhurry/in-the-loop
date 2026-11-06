@@ -3,7 +3,13 @@ import {mkdtemp, mkdir} from 'node:fs/promises';
 import {tmpdir} from 'node:os';
 import {join} from 'node:path';
 import {logoSvg} from '../src/logo-svg';
-import {CORNER_LOGO, bigText, startPage, type ModelView} from '../src/start';
+import {
+  CORNER_LOGO,
+  bigText,
+  centred,
+  startPage,
+  type ModelView,
+} from '../src/start';
 import {openStore} from '../src/store';
 import type {PrInfo, State} from '../src/types';
 
