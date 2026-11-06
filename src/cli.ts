@@ -6,7 +6,7 @@
  * the terminal UI. Without `--post` the final step is a dry run.
  */
 import {resolve} from 'node:path';
-import {closeLlm, setModel} from './llm';
+import {closeLlm, fetchProviders, setModel} from './llm';
 import {parseModel} from './model';
 import {openStore} from './store';
 import {runTui} from './tui';
@@ -39,6 +39,10 @@ process.on('exit', closeLlm);
 for (const sig of ['SIGTERM', 'SIGHUP', 'SIGINT'] as const) {
   process.on(sig, () => process.exit(130));
 }
+
+// Start OpenCode now, in parallel with the PR fetch, so the start page's
+// model list is ready sooner. The TUI reports any failure.
+fetchProviders().catch(() => {});
 
 const store = await openStore(
   process.env.REVIEW_ROOT ?? resolve(process.cwd()),

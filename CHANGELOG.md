@@ -6,6 +6,22 @@ uses [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.7.0] - 2026-11-06 (SWE-19)
+
+### Added
+
+- Model picker on the start page. A `model:` line under `repo:` and `branch:`
+  shows the model the judge runs on; `m` opens a filterable, scrolling list of
+  every model OpenCode reports for the reviewer, and Enter selects one. Enter
+  with the list closed still starts the review.
+- The default is `$MODEL` if set, else OpenCode's default model (its
+  configured `model`, else the first provider's default).
+- The chosen model is saved in `state.json` (`model`) and wins on resume; older
+  state files without one fall back to the default. It is sent on every judge
+  call and shown in the `[$REVIEWER + $MODEL]` label.
+- If OpenCode cannot list models the start page shows an error line and keeps
+  the default/`$MODEL`.
+
 ## [0.6.1] - 2026-11-04 (SWE-18)
 
 ### Changed

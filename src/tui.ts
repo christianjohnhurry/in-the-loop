@@ -27,8 +27,23 @@ import {
   type FoundIde,
 } from './ide';
 import {enquire, subjectLabel, type Subject} from './enquire';
-import {currentModelLabel, judgeIntention, reviewComments} from './llm';
-import {CORNER_LOGO, cornerLogo, startPage} from './start';
+import {
+  currentModelLabel,
+  fetchProviders,
+  judgeIntention,
+  requestedModel,
+  reviewComments,
+  setModel,
+} from './llm';
+import {
+  filterModels,
+  initialModel,
+  listModels,
+  openCodeDefault,
+  type ModelOption,
+  type ModelRef,
+} from './model';
+import {CORNER_LOGO, cornerLogo, startPage, type ModelView} from './start';
 import {glow, lines, span, styled, type Tone} from './theme';
 import {
   appendInline,
@@ -101,8 +116,50 @@ export async function runTui(store: Store, opts: TuiOptions): Promise<void> {
     flexGrow: 1,
     visible: false,
   });
-  for (const content of startPage(state.pr))
-    splash.add(new TextRenderable(renderer, {content}));
+  // Model: the saved choice, else $MODEL, else OpenCode's default once the
+  // list has loaded.
+  let selectedModel: ModelRef | undefined = initialModel(
+    state.model,
+    requestedModel(),
+    undefined,
+  );
+  if (state.model) setModel(state.model);
+  let models: ModelOption[] = [];
+  let modelsLoading = true;
+  let modelsError: string | undefined;
+  let picker: {query: string; cursor: number} | undefined;
+  /** Picker rows that fit under the logo. */
+  const pickerRows = (): number =>
+    Math.max(3, Math.min(10, renderer.height - 24));
+  /** Index of the selected model in the full list; 0 if absent. */
+  const selectedIndex = (): number =>
+    Math.max(
+      0,
+      models.findIndex(
+        (o) =>
+          o.providerID === selectedModel?.providerID &&
+          o.modelID === selectedModel?.modelID,
+      ),
+    );
+  const modelView = (): ModelView => {
+    const options = filterModels(models, picker?.query ?? '');
+    return {
+      selected: selectedModel,
+      loading: modelsLoading,
+      pickable: !modelsError,
+      error: modelsError,
+      picker: picker && {
+        query: picker.query,
+        options,
+        cursor: Math.min(picker.cursor, Math.max(0, options.length - 1)),
+        rows: pickerRows(),
+      },
+    };
+  };
+  const splashBlocks = startPage(state.pr, modelView()).map(
+    (content) => new TextRenderable(renderer, {content}),
+  );
+  for (const b of splashBlocks) splash.add(b);
   const status = new TextRenderable(renderer, {content: ''});
   const input = new InputRenderable(renderer, {width: '100%', placeholder: ''});
   const footer = new TextRenderable(renderer, {content: ''});
@@ -266,8 +323,18 @@ export async function runTui(store: Store, opts: TuiOptions): Promise<void> {
     splash.visible = !started;
     header.visible = started;
     if (!started) {
+      startPage(state.pr, modelView()).forEach((content, i) => {
+        splashBlocks[i]!.content = content;
+      });
       status.content = styled(span(''));
-      footer.content = styled(span('Enter start · Ctrl+C quit', 'muted'));
+      footer.content = styled(
+        span(
+          picker
+            ? 'type to filter · ↑/↓ move · Enter select · Esc cancel'
+            : `Enter start ${modelsError ? '' : '· m change model '}· Ctrl+C quit`,
+          'muted',
+        ),
+      );
       input.visible = false;
       input.blur();
       renderer.requestRender();
@@ -629,8 +696,43 @@ export async function runTui(store: Store, opts: TuiOptions): Promise<void> {
 
   renderer.keyInput.on('keypress', async (key) => {
     if (!started) {
+      if (picker) {
+        const options = filterModels(models, picker.query);
+        if (key.name === 'escape') picker = undefined;
+        else if (key.name === 'return') {
+          const pick = options[Math.min(picker.cursor, options.length - 1)];
+          if (pick) {
+            selectedModel = {
+              providerID: pick.providerID,
+              modelID: pick.modelID,
+            };
+            state.model = selectedModel;
+            setModel(selectedModel);
+            await persist();
+            picker = undefined;
+          }
+        } else if (key.name === 'up')
+          picker.cursor = Math.max(0, picker.cursor - 1);
+        else if (key.name === 'down')
+          picker.cursor = Math.min(options.length - 1, picker.cursor + 1);
+        else if (key.name === 'backspace') {
+          picker.query = picker.query.slice(0, -1);
+          picker.cursor = 0;
+        } else if (
+          !key.ctrl &&
+          !key.meta &&
+          /^[\x20-\x7e]$/.test(key.sequence)
+        ) {
+          picker.query += key.sequence;
+          picker.cursor = 0;
+        }
+        return void (await draw());
+      }
       if (key.name === 'return') {
         started = true;
+        await draw();
+      } else if (key.name === 'm' && !modelsError) {
+        picker = {query: '', cursor: selectedIndex()};
         await draw();
       }
       return;
@@ -683,6 +785,25 @@ export async function runTui(store: Store, opts: TuiOptions): Promise<void> {
   });
 
   await draw();
+
+  // List models in the background so the start page never waits on OpenCode.
+  void (async (): Promise<void> => {
+    try {
+      const listing = await fetchProviders();
+      models = listModels(listing);
+      selectedModel = initialModel(
+        state.model,
+        requestedModel(),
+        openCodeDefault(listing),
+      );
+      setModel(selectedModel);
+    } catch (e) {
+      modelsError = (e as Error).message || 'OpenCode unavailable';
+    }
+    modelsLoading = false;
+    if (picker && !picker.query) picker.cursor = selectedIndex();
+    if (!started) await draw();
+  })();
 
   // Like Claude Code's /ide: connect automatically when exactly one matches.
   candidates = await discoverIdes(repoRoot);

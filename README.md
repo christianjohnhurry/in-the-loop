@@ -33,7 +33,21 @@ Relaunching the same PR resumes the review.
 
 ## Pages
 
-On launch a start page shows the repo and the PR branch. Press Enter to continue. A resumed review returns to its last page.
+On launch a start page shows the repo, the PR branch and the model the judge will use. Press Enter to continue. A resumed review returns to its last page.
+
+#### Start page model picker
+
+Press `m` to open a list of every model OpenCode has available to you (configured and authenticated providers). The list is read from OpenCode, not hardcoded.
+
+| Key   | Action                                    |
+| ----- | ----------------------------------------- |
+| `m`   | Open the model list                       |
+| Type  | Filter by provider, model ID or name      |
+| ↑/↓   | Move (the list scrolls)                   |
+| Enter | Select the model and close the list       |
+| Esc   | Close the list without changing the model |
+
+Enter starts the review only when the list is closed. If OpenCode cannot list models, the start page shows an error line and the current model, and Enter still starts.
 
 Switch pages with ←/→. Arrow keys switch pages while the input is empty. Ctrl+C quits.
 
@@ -124,7 +138,7 @@ The Comments page shows the active file or selection (`src/llm.ts:L42-48`). With
 | `OPENCODE_URL` | Use an existing OpenCode server instead of spawning one.                     |
 | `$EDITOR`      | Editor for `e` on the Review page. Default: `vi`.                            |
 
-`$MODEL` is the model the judge runs on. A malformed value exits at startup. An unknown model shows as a failed judge call (retry). When unset, OpenCode's own default model runs. The prefix then shows the model OpenCode reported using, or `unknown` if no LLM call has completed this session (e.g. a resumed review).
+`$MODEL` is the model the judge runs on. A malformed value exits at startup. An unknown model shows as a failed judge call (retry). The start page pre-selects it, and you can pick another there. When unset, the start page pre-selects OpenCode's default (its configured `model`, else the first provider's default). A model picked on the start page is saved in `state.json` and wins over `$MODEL` when the review is resumed. The prefix then shows the model OpenCode reported using, or `unknown` if no LLM call has completed this session (e.g. a resumed review).
 
 LLM calls go through a local OpenCode server, using the read-only agents in `.opencode/agents/` (`review-judge.md`, `review-enquire.md`).
 
@@ -135,7 +149,7 @@ State lives in `reviews/<repo>-<pr>/`:
 | File           | Contents                              |
 | -------------- | ------------------------------------- |
 | `comments.md`  | Your comments and the intention       |
-| `state.json`   | Checklist, intention, page, feedback  |
+| `state.json`   | Checklist, intention, page, feedback, model |
 | `diff.patch`   | The PR diff                           |
 | `payload.json` | The review payload, after `p`         |
 
