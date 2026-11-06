@@ -93,6 +93,8 @@ export interface ModelView {
   error?: string;
   /** True until the model list has loaded or failed. */
   loading: boolean;
+  /** True once models are listed, so `m` opens the picker. */
+  pickable?: boolean;
   /** The open picker, or undefined when it is closed. */
   picker?: {
     /** What the reviewer has typed to filter the list. */
@@ -144,6 +146,10 @@ export function startPage(pr: PrInfo, model: ModelView): StyledText[] {
       row(model.picker ? 'Enter select' : 'Press Enter to start', 'accent', {
         bold: true,
       }),
+      row(
+        !model.picker && model.pickable ? 'Press m to select model' : ' ',
+        'accent',
+      ),
     ]),
   ];
 }

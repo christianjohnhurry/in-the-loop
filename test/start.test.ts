@@ -80,6 +80,20 @@ test('start page says OpenCode default while no model is selected', () => {
   expect(plain(pr, {...none, loading: true})).toContain('model: loading…');
 });
 
+test('start page offers m to pick a model only once models are listed', () => {
+  expect(plain(pr, closed)).not.toContain('Press m');
+  expect(plain(pr, {...closed, pickable: true})).toContain(
+    'Press m to select model',
+  );
+  expect(
+    plain(pr, {
+      ...closed,
+      pickable: true,
+      picker: {query: '', options: [], cursor: 0, rows: 5},
+    }),
+  ).not.toContain('Press m');
+});
+
 test('start page shows an error line but still the model and prompt', () => {
   const t = plain(pr, {...closed, error: 'boom'});
   expect(t).toContain('Could not list models: boom');

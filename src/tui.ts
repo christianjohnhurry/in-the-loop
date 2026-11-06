@@ -136,6 +136,7 @@ export async function runTui(store: Store, opts: TuiOptions): Promise<void> {
     return {
       selected: selectedModel,
       loading: modelsLoading,
+      pickable: models.length > 0,
       error: modelsError,
       picker: picker && {
         query: picker.query,
