@@ -234,7 +234,12 @@ export function fetchProviders(): Promise<ProviderListing> {
 
 let listing: Promise<ProviderListing> | undefined;
 
-/** Does the work for {@link fetchProviders}, once. */
+/**
+ * Queries OpenCode for its providers and config. Called once, through
+ * {@link fetchProviders}.
+ *
+ * @return The providers, their defaults and the configured model.
+ */
 async function loadProviders(): Promise<ProviderListing> {
   const {client} = await getClient();
   const [providers, config] = await Promise.all([

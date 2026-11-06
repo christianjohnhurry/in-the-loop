@@ -165,7 +165,16 @@ export function centred(texts: string[]): string[] {
   });
 }
 
-/** The model list, or an empty line while the picker is closed. */
+/**
+ * Builds the model list block: a filter line, the visible slice of matching
+ * models with the cursor marked, and a position count. While the picker is
+ * closed it is a single blank line, so the page keeps the same number of
+ * blocks.
+ *
+ * @param model The selection and picker state; only `picker` and `loading`
+ *     are read here.
+ * @return One block to stack between the model line and the prompt.
+ */
 function pickerBlock(model: ModelView): StyledText {
   const p = model.picker;
   if (!p) return lines([[span(' ')]]);
