@@ -6,6 +6,20 @@ uses [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.8.0] - 2026-11-06 (SWE-20)
+
+### Added
+
+- `review-tui` with no URL reviews the open PR for the current git branch,
+  found with `gh pr view --json url`. An explicit URL still wins and works
+  from any directory.
+- Clear errors, exit code 2, when not inside a git repo, when HEAD is
+  detached, and when the branch has no open PR (each suggests passing a URL).
+
+### Changed
+
+- Usage is now `review-tui [pr-url] [--post]`.
+
 ## [0.7.0] - 2026-11-06 (SWE-19)
 
 ### Added

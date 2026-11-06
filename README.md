@@ -25,9 +25,12 @@ The AI checks the reviewer's understanding and comments. The reviewer stays the 
 
 ```sh
 bun install
+bun src/cli.ts                                                     # review the open PR for the current branch
 bun src/cli.ts https://github.com/<owner>/<repo>/pull/<n>          # dry run
 bun src/cli.ts https://github.com/<owner>/<repo>/pull/<n> --post   # really post
 ```
+
+Without a URL, review-tui finds the open PR for the branch you have checked out (via `gh pr view`). It must be run inside a git repo on a branch, not a detached HEAD; otherwise it exits with code 2 and suggests passing a URL. A URL argument always wins and works from any directory.
 
 Relaunching the same PR resumes the review.
 

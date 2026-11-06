@@ -1,6 +1,8 @@
 #!/usr/bin/env bun
 /**
- * Command-line entry point: `review-tui <pr-url> [--post]` (or `--version`).
+ * Command-line entry point: `review-tui [pr-url] [--post]` (or `--version`).
+ *
+ * Without a URL, reviews the open PR for the current git branch.
  *
  * Opens (or resumes) the review directory for the PR, then hands control to
  * the terminal UI. Without `--post` the final step is a dry run.
@@ -9,6 +11,7 @@ import {resolve} from 'node:path';
 import {closeLlm, fetchProviders, setModel} from './llm';
 import {parseModel} from './model';
 import {openStore} from './store';
+import {resolvePrUrl, systemEnv, TargetError} from './target';
 import {runTui} from './tui';
 
 const args = process.argv.slice(2);
@@ -20,9 +23,14 @@ if (args.includes('--version')) {
   process.exit(0);
 }
 const post = args.includes('--post');
-const url = args.find((a) => !a.startsWith('--'));
-if (!url) {
-  console.error('usage: review-tui <pr-url> [--post]');
+const urlArg = args.find((a) => !a.startsWith('--'));
+let url: string;
+try {
+  url = await resolvePrUrl(urlArg, systemEnv);
+} catch (e) {
+  if (!(e instanceof TargetError)) throw e;
+  console.error(`review-tui: ${e.message}`);
+  console.error('usage: review-tui [pr-url] [--post]');
   process.exit(2);
 }
 
