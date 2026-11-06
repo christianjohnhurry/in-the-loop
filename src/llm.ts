@@ -1,7 +1,7 @@
 import {resolve} from 'node:path';
 import {createOpencode, createOpencodeClient} from '@opencode-ai/sdk/v2';
 import {parseVerdict} from './guard';
-import {modelLabel, type ModelRef} from './model';
+import {modelLabel, type ModelRef, type ProviderListing} from './model';
 import type {Verdict} from './types';
 
 const JUDGE_AGENT = 'review-judge';
@@ -218,4 +218,32 @@ export async function reviewComments(
   ].join('\n');
   const out = await run(prompt);
   return (typeof out === 'string' ? out : JSON.stringify(out)).trim();
+}
+
+/**
+ * Asks OpenCode which models the reviewer can use (configured and
+ * authenticated providers only) and which it defaults to.
+ *
+ * @return The providers, their defaults and the configured model.
+ */
+export async function fetchProviders(): Promise<ProviderListing> {
+  const {client} = await getClient();
+  const [providers, config] = await Promise.all([
+    client.config.providers({directory: REPO_ROOT}, {throwOnError: true}),
+    client.config.get({directory: REPO_ROOT}, {throwOnError: true}),
+  ]);
+  return {
+    providers: providers.data.providers,
+    default: providers.data.default,
+    configured: config.data.model,
+  };
+}
+
+/**
+ * The model prompts currently run on.
+ *
+ * @return The requested model, or undefined when OpenCode picks its default.
+ */
+export function requestedModel(): ModelRef | undefined {
+  return requested;
 }
