@@ -94,6 +94,13 @@ test('start page offers m to pick a model only once models are listed', () => {
   ).not.toContain('Press m');
 });
 
+test('hint lines are centred on each other', () => {
+  expect(centred(['ab', 'abcde'])).toEqual([' ab  ', 'abcde']);
+  const [a, b] = centred(['Press Enter to start', 'Press m to select model']);
+  expect(a!.length).toBe(b!.length);
+  expect(a!.indexOf('P')).toBe(1);
+});
+
 test('start page shows an error line but still the model and prompt', () => {
   const t = plain(pr, {...closed, error: 'boom'});
   expect(t).toContain('Could not list models: boom');

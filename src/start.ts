@@ -142,16 +142,27 @@ export function startPage(pr: PrInfo, model: ModelView): StyledText[] {
         : []),
     ]),
     pickerBlock(model),
-    lines([
-      row(model.picker ? 'Enter select' : 'Press Enter to start', 'accent', {
-        bold: true,
-      }),
-      row(
+    lines(
+      centred([
+        model.picker ? 'Enter select' : 'Press Enter to start',
         !model.picker && model.pickable ? 'Press m to select model' : ' ',
-        'accent',
-      ),
-    ]),
+      ]).map((l, i) => row(l, 'accent', {bold: i === 0})),
+    ),
   ];
+}
+
+/**
+ * Pads lines on both sides so they sit centred on each other.
+ *
+ * @param texts The lines.
+ * @return The lines padded to the width of the longest.
+ */
+export function centred(texts: string[]): string[] {
+  const width = Math.max(...texts.map((t) => t.length));
+  return texts.map((t) => {
+    const left = Math.floor((width - t.length) / 2);
+    return ' '.repeat(left) + t + ' '.repeat(width - t.length - left);
+  });
 }
 
 /** The model list, or an empty line while the picker is closed. */
