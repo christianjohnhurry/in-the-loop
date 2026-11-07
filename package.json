@@ -1,6 +1,6 @@
 {
   "name": "review-tui",
-  "version": "0.8.0",
+  "version": "0.8.1",
   "module": "src/cli.ts",
   "type": "module",
   "private": true,
