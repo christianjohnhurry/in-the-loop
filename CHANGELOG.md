@@ -6,6 +6,14 @@ uses [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.8.1] - 2026-11-07 (SWE-21)
+
+### Added
+
+- `docs/wireframe.md`: a labelled wireframe of each page, the key bindings,
+  and a Mermaid diagram of how the pages, VS Code, OpenCode and the review
+  files connect. The README links to it from a short ASCII sketch.
+
 ## [0.8.0] - 2026-11-06 (SWE-20)
 
 ### Added
