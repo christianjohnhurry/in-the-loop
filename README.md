@@ -26,7 +26,7 @@ The AI checks the reviewer's understanding and comments. The reviewer stays the 
   VS Code selection ──▶ Enquire, Comments      OpenCode ◀──▶ judge, enquire
 ```
 
-Every page, its keys, and how data flows between the panes, VS Code and the LLM: [`docs/wireframe.md`](docs/wireframe.md). Where the code lives: [`docs/repo-layout.md`](docs/repo-layout.md).
+Every page, its keys, and how data flows between the panes, VS Code and the LLM: [`docs/ui.md`](docs/ui.md). Where the code lives: [`docs/repo-layout.md`](docs/repo-layout.md).
 
 ## Requirements
 
@@ -179,6 +179,8 @@ bun run lint
 bun run typecheck
 bun src/cli.ts --version
 ```
+
+Where each file lives and what it does: [`docs/repo-layout.md`](docs/repo-layout.md).
 
 User-visible changes are recorded in `CHANGELOG.md`, one entry per ticket, with a version bump in `package.json`.
 

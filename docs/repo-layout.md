@@ -1,6 +1,6 @@
 # Repo layout
 
-Where things live and what each file does. For what the TUI looks like on screen, see [`wireframe.md`](wireframe.md).
+Where things live and what each file does. For what the TUI looks like on screen, see [`ui.md`](ui.md).
 
 ```
 in-the-loop/
@@ -61,7 +61,7 @@ in-the-loop/
 │   └── test/server.test.ts        Server tests
 │
 ├── docs/
-│   ├── wireframe.md               What the TUI looks like, its keys, and how data flows
+│   ├── ui.md                      What the TUI looks like, its keys, and how data flows
 │   ├── repo-layout.md             This file
 │   ├── ide-protocol.md            The VS Code to review-tui message protocol
 │   ├── design/enquire-page.md     Design and guardrail rules for the Enquire page
