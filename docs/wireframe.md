@@ -1,6 +1,6 @@
 # Review TUI wireframe
 
-What is on screen in review-tui, page by page, which keys do what, and where data goes. The wireframes are drawn from `src/tui.ts` and `src/start.ts`; the text is illustrative, the layout is real. For installing and running, see the [README](../README.md).
+What is on screen in review-tui, page by page, which keys do what, and where data goes. The wireframes are drawn from `src/tui.ts` and `src/start.ts`; the text is illustrative, the layout is real. For installing and running, see the [README](../README.md); for where the code lives, see [`repo-layout.md`](repo-layout.md).
 
 ## Layout shared by every page
 

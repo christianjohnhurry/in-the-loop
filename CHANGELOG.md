@@ -10,6 +10,7 @@ uses [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- `docs/repo-layout.md`: the repo tree with a comment on what each file does.
 - `docs/wireframe.md`: a labelled wireframe of each page, the key bindings,
   and a Mermaid diagram of how the pages, VS Code, OpenCode and the review
   files connect. The README links to it from a short ASCII sketch.
