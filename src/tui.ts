@@ -17,6 +17,7 @@ import {
   ghLogin,
   parseDiff,
   postReview,
+  reviewFooter,
   validateRange,
 } from './github';
 import {
@@ -61,6 +62,7 @@ import {
   type Store,
 } from './store';
 import type {InlineComment} from './types';
+import {VERSION} from './version';
 
 const PAGES = [
   'Checklist',
@@ -780,6 +782,7 @@ export async function runTui(store: Store, opts: TuiOptions): Promise<void> {
       general,
       comments,
       headSha: state.pr.headSha,
+      footer: reviewFooter(VERSION, model),
     });
     payloadText = JSON.stringify(payload, null, 2);
     await Bun.write(`${store.dir}/payload.json`, payloadText);

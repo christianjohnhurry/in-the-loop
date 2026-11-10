@@ -17,6 +17,7 @@ in-the-loop/
 │   ├── cli.ts                     Entry point: parse args, open the review, start the TUI
 │   ├── target.ts                  Pick the PR: the URL argument, else the open PR for this branch
 │   ├── tui.ts                     The terminal UI: pages, key handling, drawing, glue to everything below
+│   ├── version.ts                 The app version, read from package.json
 │   ├── start.ts                   Start page: logo, repo/branch/model lines, model picker
 │   ├── pager.ts                   Page body: one scroll region per page under the fixed tab bar
 │   ├── theme.ts                   The one colour palette and styled-text helpers

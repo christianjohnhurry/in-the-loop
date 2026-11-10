@@ -6,6 +6,21 @@ uses [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.11.0] - 2026-11-10 (SWE-25)
+
+### Added
+
+- Posted review bodies end with a footer: `Reviewed with [In The Loop's
+  review-tui](https://github.com/christianjohnhurry/in-the-loop) (vX.Y.Z)
+  using $MODEL`, showing the real version and the model used. It is added when
+  the review is built, so it also ends an edited `review-body.md`.
+
+### Changed
+
+- The intention heading now reads "Reviewer’s understanding of the PR contents
+  and intention (please correct reviewer if wrong)".
+- `src/version.ts` exposes the version from `package.json`.
+
 ## [0.10.0] - 2026-11-10 (SWE-23)
 
 ### Added
