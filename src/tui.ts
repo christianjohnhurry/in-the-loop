@@ -13,6 +13,7 @@ import {CHECKLIST} from './checklist';
 import {reviewGates} from './gates';
 import {
   buildReviewPayload,
+  composeReviewBody,
   ghLogin,
   parseDiff,
   postReview,
@@ -48,9 +49,11 @@ import {CORNER_LOGO, cornerLogo, startPage, type ModelView} from './start';
 import {glow, lines, span, styled, type Tone} from './theme';
 import {
   appendInline,
+  bodyPath,
   commentsPath,
   getSection,
   parseInline,
+  readBodyDraft,
   readComments,
   setSection,
   type Store,
@@ -192,6 +195,8 @@ export async function runTui(store: Store, opts: TuiOptions): Promise<void> {
   const ide = new IdeClient(() => void draw());
   let typingOff = false; // Esc: leave the input so arrows navigate
   let payloadText = '';
+  let bodyText = ''; // review body as it would be posted, without the prefix
+  let bodyEdited = false; // bodyText comes from review-body.md
   let asking = false; // an Enquire question is in flight
   let glowStep = 0;
   let glowTimer: ReturnType<typeof setInterval> | undefined;
@@ -465,6 +470,21 @@ export async function runTui(store: Store, opts: TuiOptions): Promise<void> {
             : span('dry run', 'muted'),
         ],
         [],
+        ...(bodyText
+          ? [
+              [
+                span('Review body', 'accent', {bold: true}),
+                span(
+                  bodyEdited
+                    ? ' (edited, from review-body.md):'
+                    : ' (b to edit before posting):',
+                  'muted',
+                ),
+              ],
+              ...bodyText.split('\n').map((l) => [span(l)]),
+              [],
+            ]
+          : []),
         ...(state.feedback
           ? [
               [span('Feedback on your comments (LLM):', 'llm', {bold: true})],
@@ -480,7 +500,7 @@ export async function runTui(store: Store, opts: TuiOptions): Promise<void> {
           : []),
       ]);
       hint +=
-        ' · s start review · e edit comments.md · p ' +
+        ' · s start review · e edit comments.md · b edit body · p ' +
         (opts.post ? 'post' : 'dry-run payload');
     }
     pager.show(state.page);
@@ -507,6 +527,7 @@ export async function runTui(store: Store, opts: TuiOptions): Promise<void> {
     typingOff = false;
     say('');
     await persist();
+    if (state.page === 4) await refreshBody();
     await draw();
   }
 
@@ -667,12 +688,56 @@ export async function runTui(store: Store, opts: TuiOptions): Promise<void> {
     busy = false;
   }
 
-  async function editComments(): Promise<void> {
+  /**
+   * The review body to post: the reviewer's edited draft if there is one,
+   * else message, quoted intention and two-line summary from comments.md.
+   */
+  async function currentBody(
+    md: string,
+    comments: InlineComment[],
+  ): Promise<{text: string; edited: boolean}> {
+    const draft = await readBodyDraft(store.dir);
+    if (draft) return {text: draft, edited: true};
+    return {
+      text: composeReviewBody({
+        message: getSection(md, 'General') || 'Review comments below.',
+        intention: getSection(md, 'Intention') || state.intention.text,
+        comments,
+      }),
+      edited: false,
+    };
+  }
+
+  /** Updates the body preview shown on the Review page. */
+  async function refreshBody(): Promise<void> {
+    const md = await readComments(store.dir);
+    const b = await currentBody(md, parseInline(md));
+    bodyText = b.text;
+    bodyEdited = b.edited;
+  }
+
+  async function openEditor(path: string): Promise<void> {
     await renderer.suspend();
-    spawnSync(process.env.EDITOR || 'vi', [commentsPath(store.dir)], {
-      stdio: 'inherit',
-    });
+    spawnSync(process.env.EDITOR || 'vi', [path], {stdio: 'inherit'});
     await renderer.resume();
+  }
+
+  async function editComments(): Promise<void> {
+    await openEditor(commentsPath(store.dir));
+  }
+
+  /** Opens the review body in $EDITOR, creating review-body.md if needed. */
+  async function editBody(): Promise<void> {
+    if (!(await readBodyDraft(store.dir))) {
+      const md = await readComments(store.dir);
+      const b = await currentBody(md, parseInline(md));
+      await Bun.write(bodyPath(store.dir), `${b.text}\n`);
+    }
+    await openEditor(bodyPath(store.dir));
+    say(
+      'Body saved to review-body.md; delete the file to regenerate it.',
+      'muted',
+    );
   }
 
   async function publish(): Promise<void> {
@@ -692,7 +757,7 @@ export async function runTui(store: Store, opts: TuiOptions): Promise<void> {
     }
     const reviewer = process.env.REVIEWER || (await ghLogin());
     const model = currentModelLabel();
-    const general = getSection(md, 'General') || 'Review comments below.';
+    const general = (await currentBody(md, comments)).text;
     const payload = buildReviewPayload({
       prefix: `[${reviewer} + ${model}]`,
       general,
@@ -790,6 +855,7 @@ export async function runTui(store: Store, opts: TuiOptions): Promise<void> {
     if (state.page === 4 && !busy) {
       if (key.name === 's') await startReview();
       else if (key.name === 'e') await editComments();
+      else if (key.name === 'b') await editBody();
       else if (key.name === 'p') {
         try {
           await publish();
@@ -797,6 +863,7 @@ export async function runTui(store: Store, opts: TuiOptions): Promise<void> {
           say(`Failed: ${(e as Error).message}`, 'error');
         }
       }
+      await refreshBody();
       await persist();
       return void (await draw());
     }

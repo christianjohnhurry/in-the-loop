@@ -1,15 +1,28 @@
 import {expect, test} from 'bun:test';
+import {mkdtemp, rm} from 'node:fs/promises';
+import {tmpdir} from 'node:os';
+import {join} from 'node:path';
 import {checklistDone, CHECKLIST} from '../src/checklist';
 import {reviewGates} from '../src/gates';
 import {
   buildReviewPayload,
+  composeReviewBody,
   parseDiff,
   parsePrUrl,
+  quoteBlock,
+  summarizeComments,
   validateTarget,
 } from '../src/github';
 import {FALLBACK_HINT, HINT_CAP, parseVerdict} from '../src/guard';
 import {judgeIntention, reviewComments} from '../src/llm';
-import {formatInline, getSection, parseInline, setSection} from '../src/store';
+import {
+  bodyPath,
+  formatInline,
+  getSection,
+  parseInline,
+  readBodyDraft,
+  setSection,
+} from '../src/store';
 import type {State} from '../src/types';
 
 const diff = await Bun.file(`${import.meta.dir}/fixtures/sample.diff`).text();
@@ -131,4 +144,71 @@ test('gates', () => {
   state.intention.status = 'passed';
   expect(reviewGates(state, []).missing).toEqual(['no comments yet']);
   expect(reviewGates(state, [{path: 'a', line: 1, body: 'b'}]).ok).toBe(true);
+});
+
+test('quoteBlock quotes every line, blank lines included', () => {
+  expect(quoteBlock('one\n\ntwo\n')).toBe('> one\n>\n> two');
+});
+
+test('summarizeComments is two lines: counts, then files', () => {
+  const s = summarizeComments([
+    {path: 'a.ts', line: 1, body: 'x'},
+    {path: 'a.ts', line: 2, body: 'y'},
+    {path: 'b.ts', line: 3, body: 'z'},
+  ]);
+  expect(s.split('\n')).toEqual([
+    '- 3 inline comments on 2 files.',
+    '- Files: `a.ts` (2), `b.ts` (1).',
+  ]);
+  expect(
+    summarizeComments([{path: 'a.ts', line: 1, body: 'x'}]).split('\n')[0],
+  ).toBe('- 1 inline comment on 1 file.');
+  expect(summarizeComments([]).split('\n')).toHaveLength(2);
+});
+
+test('review body: message, quoted intention, then summary, in order', () => {
+  const body = composeReviewBody({
+    message: 'Thanks for this.\n',
+    intention: 'Adds a greeter.\nIt is pure.',
+    comments: [{path: 'a.ts', line: 1, body: 'x'}],
+  });
+  const message = body.indexOf('Thanks for this.');
+  const quote = body.indexOf('> Adds a greeter.\n> It is pure.');
+  const summary = body.indexOf('- 1 inline comment on 1 file.');
+  expect(message).toBe(0);
+  expect(quote).toBeGreaterThan(message);
+  expect(summary).toBeGreaterThan(quote);
+});
+
+test('review body omits the quote when there is no intention', () => {
+  const body = composeReviewBody({message: 'Hi', intention: ' ', comments: []});
+  expect(body).not.toContain('>');
+  expect(body.startsWith('Hi')).toBe(true);
+});
+
+test('composed body is the single review body, prefixed once', () => {
+  const body = composeReviewBody({
+    message: 'Hi',
+    intention: 'why',
+    comments: [{path: 'a.ts', line: 1, body: 'x'}],
+  });
+  const p = buildReviewPayload({
+    prefix: '[me + m]',
+    general: body,
+    headSha: 'abc',
+    comments: [{path: 'a.ts', line: 1, body: 'x'}],
+  });
+  expect(p.body.startsWith('[me + m] Hi')).toBe(true);
+  expect(p.body).toContain('\n> why\n');
+  expect(p.comments).toHaveLength(1);
+});
+
+test('readBodyDraft: null when absent or blank, else trimmed text', async () => {
+  const dir = await mkdtemp(join(tmpdir(), 'body-'));
+  expect(await readBodyDraft(dir)).toBeNull();
+  await Bun.write(bodyPath(dir), '  \n');
+  expect(await readBodyDraft(dir)).toBeNull();
+  await Bun.write(bodyPath(dir), 'edited body\n');
+  expect(await readBodyDraft(dir)).toBe('edited body');
+  await rm(dir, {recursive: true});
 });

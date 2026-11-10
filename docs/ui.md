@@ -213,10 +213,16 @@ Gated: `s` and `p` need a complete checklist, a passed intention and at least on
 │ Gates: blocked: checklist incomplete, no comments yet                  ① │
 │ Mode: dry run                                                          ② │
 │                                                                          │
-│ Feedback on your comments (LLM):                                       ③ │
+│ Review body (b to edit before posting):                                ③ │
+│ Thanks, a few questions below.                                           │
+│ > Adds the greeting helper.                                              │
+│ - 2 inline comments on 1 file.                                           │
+│ - Files: `src/greet.ts` (2).                                             │
+│                                                                          │
+│ Feedback on your comments (LLM):                                       ④ │
 │ …                                                                        │
 │                                                                          │
-│ Payload:                                                               ④ │
+│ Payload:                                                               ⑤ │
 │ { "event": "COMMENT", "body": "[reviewer + model] …", … }                │
 │                                                                          │
 │ ←/→ pages · Ctrl+C quit · s start review · e edit comments.md · p dry-run│
@@ -225,13 +231,15 @@ Gated: `s` and `p` need a complete checklist, a passed intention and at least on
 
 1. **Gates**: `all passed`, or what is missing.
 2. **Mode**: `dry run` or red `POST (live)` with `--post`.
-3. **Feedback**: one-shot LLM feedback on accuracy and fairness, after `s`.
-4. **Payload**: the review that `p` built, also saved to `payload.json`.
+3. **Review body**: your message, the intention as a `> ` quote, and a two-line summary of the inline comments. `b` edits it.
+4. **Feedback**: one-shot LLM feedback on accuracy and fairness, after `s`.
+5. **Payload**: the review that `p` built, also saved to `payload.json`.
 
 | Key | Action                                                          |
 | --- | --------------------------------------------------------------- |
 | `s` | Ask the LLM for feedback on the comments                        |
 | `e` | Edit `comments.md` in `$EDITOR` (the TUI pauses, then resumes)  |
+| `b` | Edit the review body in `$EDITOR`; saved as `review-body.md`    |
 | `p` | Build the payload; post it only with `--post`, else dry run     |
 
 ## Key bindings
@@ -246,7 +254,7 @@ Gated: `s` and `p` need a complete checklist, a passed intention and at least on
 | `m`             | Start page                     | Open model picker                           |
 | ↑/↓, Space      | Checklist                      | Move, tick / untick                         |
 | Enter           | Intention, Enquire, Comments   | Submit the input                            |
-| `s`, `e`, `p`   | Review                         | Start review, edit comments, post / dry run |
+| `s`, `e`, `b`, `p` | Review                   | Start review, edit comments, edit body, post / dry run |
 
 ## How data flows
 
@@ -291,7 +299,7 @@ In words, per pane:
 - **Intention** sends the reviewer's statement, the PR description and the diff to the `review-judge` agent in OpenCode. Only a parsed `pass` or `retry` and a length-capped hint come back, and a hint that copies the PR description is replaced. On `pass`, the reviewer's own text goes into the Intention section of `comments.md`.
 - **Enquire** sends the question, the current VS Code selection and the diff to the read-only `review-enquire` agent. The answer is shown and then dropped. It never reaches `comments.md`, the Review page or GitHub.
 - **Comments** takes the file and lines from the typed text or from the VS Code selection, checks them against the diff, and appends to `comments.md`. No LLM.
-- **Review** checks the gates from `state.json` and `comments.md`, sends `comments.md` to the judge for feedback on `s`, and on `p` prefixes every comment with `[$REVIEWER + $MODEL]`, writes `payload.json` and, with `--post`, posts one GitHub review.
+- **Review** checks the gates from `state.json` and `comments.md`, sends `comments.md` to the judge for feedback on `s`, and on `p` builds the review body (message, quoted intention, two-line summary; `b` edits it), prefixes every comment with `[$REVIEWER + $MODEL]`, writes `payload.json` and, with `--post`, posts one GitHub review.
 
 ### VS Code selection
 

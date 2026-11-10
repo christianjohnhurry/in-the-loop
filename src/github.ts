@@ -173,6 +173,72 @@ export function validateRange(
   return null;
 }
 
+/**
+ * Renders text as a Markdown quote block, one `> ` per line.
+ *
+ * @param text The text to quote.
+ * @return The quoted text; blank lines become a bare `>`.
+ */
+export function quoteBlock(text: string): string {
+  return text
+    .trim()
+    .split('\n')
+    .map((l) => (l.trim() === '' ? '>' : `> ${l}`))
+    .join('\n');
+}
+
+/**
+ * Summarises inline comments in exactly two lines: how many comments on how
+ * many files, then which files.
+ *
+ * @param comments The inline comments.
+ * @return Two Markdown list lines, joined by a newline.
+ */
+export function summarizeComments(comments: InlineComment[]): string {
+  const perFile = new Map<string, number>();
+  for (const c of comments) perFile.set(c.path, (perFile.get(c.path) ?? 0) + 1);
+  const plural = (count: number, word: string): string =>
+    `${count} ${word}${count === 1 ? '' : 's'}`;
+  if (comments.length === 0) return '- No inline comments.\n- No files.';
+  const files = [...perFile].map(([p, k]) => `\`${p}\` (${k})`).join(', ');
+  return (
+    `- ${plural(comments.length, 'inline comment')} on ` +
+    `${plural(perFile.size, 'file')}.\n- Files: ${files}.`
+  );
+}
+
+/** The parts of the review body, before the reviewer prefix is added. */
+export interface BodyParts {
+  /** The reviewer's own message to the author. */
+  message: string;
+  /** The intention the reviewer stated during the review; may be empty. */
+  intention: string;
+  /** Inline comments, summarised in two lines. */
+  comments: InlineComment[];
+}
+
+/**
+ * Builds the review body: the reviewer's message, then their intention as a
+ * quote block (so GitHub shows it was written as part of the review process,
+ * not to the author), then a two-line summary of the inline comments.
+ *
+ * @param parts Message, intention and inline comments.
+ * @return The Markdown body, without the reviewer prefix.
+ */
+export function composeReviewBody(parts: BodyParts): string {
+  const sections = [parts.message.trim()];
+  if (parts.intention.trim())
+    sections.push(
+      '_Reviewer’s intention for this change (written during the ' +
+        'review, not addressed to you):_',
+      quoteBlock(parts.intention),
+    );
+  sections.push(
+    `**Summary of inline comments**\n\n${summarizeComments(parts.comments)}`,
+  );
+  return sections.join('\n\n');
+}
+
 /** What goes into a review. */
 export interface ReviewInput {
   /** Prepended to every comment, e.g. "[me + model]". */
