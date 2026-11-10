@@ -34,7 +34,6 @@ import {
   fetchProviders,
   judgeIntention,
   requestedModel,
-  reviewComments,
   setModel,
 } from './llm';
 import {
@@ -45,6 +44,7 @@ import {
   type ModelOption,
   type ModelRef,
 } from './model';
+import {reviseRun} from './revise';
 import {CORNER_LOGO, cornerLogo, startPage, type ModelView} from './start';
 import {glow, lines, span, styled, type Tone} from './theme';
 import {
@@ -492,7 +492,13 @@ export async function runTui(store: Store, opts: TuiOptions): Promise<void> {
           : []),
         ...(state.feedback
           ? [
-              [span('Feedback on your comments (LLM):', 'llm', {bold: true})],
+              [
+                span(
+                  `Feedback on your comments (LLM, run ${state.reviewRuns ?? 1}):`,
+                  'llm',
+                  {bold: true},
+                ),
+              ],
               ...state.feedback.split('\n').map((l) => [span(l, 'llm')]),
             ]
           : []),
@@ -504,8 +510,9 @@ export async function runTui(store: Store, opts: TuiOptions): Promise<void> {
             ]
           : []),
       ]);
+      const sVerb = state.reviewRuns ? 're-run' : 'start';
       hint +=
-        ' · s start review · e edit comments.md · m message · b edit body · p ' +
+        ` · s ${sVerb} review · e edit comments.md · m message · b edit body · p ` +
         (opts.post ? 'post' : 'dry-run payload');
     }
     pager.show(state.page);
@@ -675,18 +682,14 @@ export async function runTui(store: Store, opts: TuiOptions): Promise<void> {
   }
   input.on(InputRenderableEvents.ENTER, (v: string): void => void submit(v));
 
+  /** Runs a review of comments.md as it is now; repeatable after edits. */
   async function startReview(): Promise<void> {
-    const md = await readComments(store.dir);
-    const gates = reviewGates(state, parseInline(md));
-    if (!gates.ok) {
-      say(`Blocked: ${gates.missing.join(', ')}`, 'error');
-      return;
-    }
     busy = true;
     await draw();
     try {
-      state.feedback = await reviewComments(md);
-      say('');
+      const result = await reviseRun(store);
+      if (result.ok) say(`Review run ${result.run} done.`);
+      else say(`Blocked: ${result.missing.join(', ')}`, 'error');
     } catch (e) {
       say(`Review failed: ${(e as Error).message}`, 'error');
     }

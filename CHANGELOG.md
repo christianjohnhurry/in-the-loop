@@ -6,7 +6,7 @@ uses [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
-## [0.9.0] - 2026-11-10 (SWE-23)
+## [0.10.0] - 2026-11-10 (SWE-23)
 
 ### Added
 
@@ -19,6 +19,22 @@ uses [Semantic Versioning](https://semver.org/).
   `review-message.md`; no message means none is posted). `b` opens the whole
   body (saved as `review-body.md`) to edit it before `p`. An edited body is
   posted as written; delete the file to build it afresh.
+
+## [0.9.0] - 2026-11-10 (SWE-24)
+
+### Added
+
+- The review can be run again from the Review page: edit `comments.md` with
+  `e`, then press `s` again, as many times as needed. Each run reads
+  `comments.md` as it is now, so it sees your edits.
+- `src/revise.ts` (`reviseRun`) holds one run, so it can be tested without the
+  UI. The run count is saved as `reviewRuns` in `state.json`.
+
+### Changed
+
+- The feedback heading shows the run number, and the footer hint reads
+  `s re-run review` once a run has completed.
+- A run that fails keeps the feedback from the last successful run.
 
 ## [0.8.2] - 2026-11-10 (SWE-22)
 

@@ -125,15 +125,17 @@ With a VS Code selection, just type the comment. Press Enter to add it.
 
 ### Review
 
-| Key | Action                                  |
-| --- | --------------------------------------- |
-| `s` | Start review (LLM feedback on comments) |
-| `e` | Edit `comments.md` in `$EDITOR`         |
-| `m` | Write a message to the author in `$EDITOR` |
-| `b` | Edit the review body in `$EDITOR`       |
-| `p` | Build the payload and post it           |
+| Key | Action                                                |
+| --- | ----------------------------------------------------- |
+| `s` | Start review, or re-run it (LLM feedback on comments) |
+| `e` | Edit `comments.md` in `$EDITOR`                       |
+| `m` | Write a message to the author in `$EDITOR`            |
+| `b` | Edit the review body in `$EDITOR`                     |
+| `p` | Build the payload and post it                         |
 
 `s` and `p` need a complete checklist, a passed intention and at least one comment. Without `--post`, `p` is a dry run and only saves `payload.json`.
+
+The review can be re-run as often as you like: press `e` to edit `comments.md`, then `s` again. Each run reads `comments.md` as it is now, so it sees your edits, and replaces the previous feedback. The heading shows which run the feedback is from.
 
 The review body has four parts, in this order: (1) your message to the author, which you write with `m` (saved as `review-message.md`; left out if you write none); (2) your intention as a `> ` quote block, so GitHub shows it was written during the review; (3) a two-line summary of the inline comments; (4) your general comments (`general:` text on the Comments page, which apply across the whole review). The page shows the body. Press `b` to edit the whole body before `p`; the edit is saved as `review-body.md` and posted as written (delete the file to rebuild it). Everything goes up as one review with the inline comments.
 
@@ -171,7 +173,7 @@ State lives in `reviews/<repo>-<pr>/`:
 | File           | Contents                              |
 | -------------- | ------------------------------------- |
 | `comments.md`  | Your comments and the intention       |
-| `state.json`   | Checklist, intention, page, feedback, model |
+| `state.json`   | Checklist, intention, page, feedback, review runs, model |
 | `diff.patch`   | The PR diff                           |
 | `review-message.md` | Your message to the author, after `m` |
 | `review-body.md` | Your edited review body, after `b` |

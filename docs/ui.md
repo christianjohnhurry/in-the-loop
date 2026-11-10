@@ -220,7 +220,7 @@ Gated: `s` and `p` need a complete checklist, a passed intention and at least on
 │ - Files: `src/greet.ts` (2).                                             │
 │ Please add docs for the new helper.                                      │
 │                                                                          │
-│ Feedback on your comments (LLM):                                       ④ │
+│ Feedback on your comments (LLM, run 1):                                ④ │
 │ …                                                                        │
 │                                                                          │
 │ Payload:                                                               ⑤ │
@@ -233,12 +233,12 @@ Gated: `s` and `p` need a complete checklist, a passed intention and at least on
 1. **Gates**: `all passed`, or what is missing.
 2. **Mode**: `dry run` or red `POST (live)` with `--post`.
 3. **Review body**: your message to the author (`m`), the intention as a `> ` quote, a two-line summary of the inline comments, then your general comments. `b` edits the whole body.
-4. **Feedback**: one-shot LLM feedback on accuracy and fairness, after `s`.
+4. **Feedback**: one-shot LLM feedback on accuracy and fairness, after `s`. Pressing `s` again after an edit re-runs it on the current `comments.md`; the heading shows the run number.
 5. **Payload**: the review that `p` built, also saved to `payload.json`.
 
 | Key | Action                                                          |
 | --- | --------------------------------------------------------------- |
-| `s` | Ask the LLM for feedback on the comments                        |
+| `s` | Ask the LLM for feedback on the comments; press again after editing |
 | `e` | Edit `comments.md` in `$EDITOR` (the TUI pauses, then resumes)  |
 | `m` | Write a message to the author in `$EDITOR`; saved as `review-message.md` |
 | `b` | Edit the review body in `$EDITOR`; saved as `review-body.md`    |
