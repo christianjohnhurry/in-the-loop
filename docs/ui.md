@@ -213,7 +213,7 @@ Gated: `s` and `p` need a complete checklist, a passed intention and at least on
 │ Gates: blocked: checklist incomplete, no comments yet                  ① │
 │ Mode: dry run                                                          ② │
 │                                                                          │
-│ Feedback on your comments (LLM):                                       ③ │
+│ Feedback on your comments (LLM, run 1):                                ③ │
 │ …                                                                        │
 │                                                                          │
 │ Payload:                                                               ④ │
@@ -225,12 +225,12 @@ Gated: `s` and `p` need a complete checklist, a passed intention and at least on
 
 1. **Gates**: `all passed`, or what is missing.
 2. **Mode**: `dry run` or red `POST (live)` with `--post`.
-3. **Feedback**: one-shot LLM feedback on accuracy and fairness, after `s`.
+3. **Feedback**: one-shot LLM feedback on accuracy and fairness, after `s`. Pressing `s` again after an edit re-runs it on the current `comments.md`; the heading shows the run number.
 4. **Payload**: the review that `p` built, also saved to `payload.json`.
 
 | Key | Action                                                          |
 | --- | --------------------------------------------------------------- |
-| `s` | Ask the LLM for feedback on the comments                        |
+| `s` | Ask the LLM for feedback on the comments; press again after editing |
 | `e` | Edit `comments.md` in `$EDITOR` (the TUI pauses, then resumes)  |
 | `p` | Build the payload; post it only with `--post`, else dry run     |
 
