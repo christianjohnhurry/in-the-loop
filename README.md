@@ -6,7 +6,7 @@
 
 Utility tools for software engineers who want to empower themselves with AI while maintaining discipline and keeping themselves in the loop.
 
-The goal is for AI to speed up the work, not take it over. Key decisions should still be made by the engineer, with their authorship and their understanding.
+The goal is for AI to empower the user to build a deeper mental model of their codebase. Key decisions should be made by the engineer, with their authorship and their understanding. That can be undermined by a general chat interface with no guardrails. These tools keep AI accessible, but avoids unwittingly handing off decision making to an agent. 
 
 ## review-tui
 
