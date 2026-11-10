@@ -6,6 +6,21 @@ uses [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.12.0] - 2026-11-10 (SWE-26)
+
+### Added
+
+- `p` now asks for the review type before posting: Comment (the default),
+  Request changes or Approve, mapped to GitHub's `COMMENT`, `REQUEST_CHANGES`
+  and `APPROVE`. `←`/`→` or `c`/`r`/`a` choose, Enter posts (or saves the
+  dry-run payload), Esc cancels. The chosen type is shown before posting.
+
+### Changed
+
+- If GitHub refuses the post, for example approving or requesting changes on
+  your own PR, the error is shown, nothing is posted, and the prompt stays
+  open so you can pick another type. Comments, message and body are kept.
+
 ## [0.11.0] - 2026-11-10 (SWE-25)
 
 ### Added

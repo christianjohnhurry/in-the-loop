@@ -13,10 +13,14 @@ import {CHECKLIST} from './checklist';
 import {reviewGates} from './gates';
 import {
   buildReviewPayload,
+  DEFAULT_REVIEW_EVENT,
+  explainPostError,
   composeReviewBody,
   ghLogin,
   parseDiff,
   postReview,
+  REVIEW_CHOICES,
+  type ReviewEvent,
   reviewFooter,
   validateRange,
 } from './github';
@@ -199,6 +203,8 @@ export async function runTui(store: Store, opts: TuiOptions): Promise<void> {
   const ide = new IdeClient(() => void draw());
   let typingOff = false; // Esc: leave the input so arrows navigate
   let payloadText = '';
+  /** The posting prompt, open after `p`; `event` is the highlighted type. */
+  let posting: {event: ReviewEvent} | undefined;
   let bodyText = ''; // review body as it would be posted, without the prefix
   let bodyEdited = false; // bodyText comes from review-body.md
   let asking = false; // an Enquire question is in flight
@@ -476,6 +482,28 @@ export async function runTui(store: Store, opts: TuiOptions): Promise<void> {
             ? span('POST (live)', 'error', {bold: true})
             : span('dry run', 'muted'),
         ],
+        ...(posting
+          ? [
+              [],
+              [
+                span('Post review as: ', 'accent', {bold: true}),
+                ...REVIEW_CHOICES.flatMap((c) => [
+                  c.event === posting!.event
+                    ? span(`[${c.label}]`, 'accent', {bold: true})
+                    : span(` ${c.label} `, 'muted'),
+                  span('  '),
+                ]),
+              ],
+              [
+                span(
+                  opts.post
+                    ? 'Enter posts it to GitHub with the inline comments and body · Esc cancels'
+                    : 'Enter saves the dry-run payload · Esc cancels',
+                  'muted',
+                ),
+              ],
+            ]
+          : []),
         [],
         ...(bodyText
           ? [
@@ -513,9 +541,13 @@ export async function runTui(store: Store, opts: TuiOptions): Promise<void> {
           : []),
       ]);
       const sVerb = state.reviewRuns ? 're-run' : 'start';
-      hint +=
-        ` · s ${sVerb} review · e edit comments.md · m message · b edit body · p ` +
-        (opts.post ? 'post' : 'dry-run payload');
+      hint = posting
+        ? '←/→ or c/r/a choose review type · Enter ' +
+          (opts.post ? 'post' : 'dry-run') +
+          ' · Esc cancel'
+        : hint +
+          ` · s ${sVerb} review · e edit comments.md · m message · b edit body · p ` +
+          (opts.post ? 'post' : 'dry-run payload');
     }
     pager.show(state.page);
     pager.active.text.content = text;
@@ -759,12 +791,13 @@ export async function runTui(store: Store, opts: TuiOptions): Promise<void> {
     );
   }
 
-  async function publish(): Promise<void> {
+  async function publish(event: ReviewEvent): Promise<void> {
     const md = await readComments(store.dir);
     const comments = parseInline(md);
     const gates = reviewGates(state, comments);
     if (!gates.ok) {
       say(`Blocked: ${gates.missing.join(', ')}`, 'error');
+      posting = undefined;
       return;
     }
     const bad = comments
@@ -772,6 +805,7 @@ export async function runTui(store: Store, opts: TuiOptions): Promise<void> {
       .find(Boolean);
     if (bad) {
       say(`Edited comment invalid: ${bad}`, 'error');
+      posting = undefined;
       return;
     }
     const reviewer = process.env.REVIEWER || (await ghLogin());
@@ -783,14 +817,18 @@ export async function runTui(store: Store, opts: TuiOptions): Promise<void> {
       comments,
       headSha: state.pr.headSha,
       footer: reviewFooter(VERSION, model),
+      event,
     });
     payloadText = JSON.stringify(payload, null, 2);
     await Bun.write(`${store.dir}/payload.json`, payloadText);
-    say(
-      opts.post
-        ? `Posted: ${await postReview(state.pr, payload)}`
-        : `Dry run: payload saved to ${store.dir}/payload.json`,
-    );
+    if (opts.post) {
+      try {
+        say(`Posted: ${await postReview(state.pr, payload)}`);
+      } catch (e) {
+        throw new PostError(explainPostError(event, (e as Error).message));
+      }
+    } else say(`Dry run: payload saved to ${store.dir}/payload.json`);
+    posting = undefined;
   }
 
   renderer.keyInput.on('keypress', async (key) => {
@@ -836,6 +874,33 @@ export async function runTui(store: Store, opts: TuiOptions): Promise<void> {
       }
       return;
     }
+    if (posting && state.page === 4) {
+      const i = REVIEW_CHOICES.findIndex((c) => c.event === posting!.event);
+      const n = REVIEW_CHOICES.length;
+      const byKey = REVIEW_CHOICES.find((c) => c.key === key.name);
+      if (key.name === 'escape') {
+        posting = undefined;
+        say('Posting cancelled.', 'muted');
+      } else if (key.name === 'left')
+        posting.event = REVIEW_CHOICES[(i + n - 1) % n]!.event;
+      else if (key.name === 'right')
+        posting.event = REVIEW_CHOICES[(i + 1) % n]!.event;
+      else if (byKey) posting.event = byKey.event;
+      else if (key.name === 'return' && !busy) {
+        try {
+          await publish(posting.event);
+        } catch (e) {
+          say(
+            e instanceof PostError
+              ? e.message
+              : `Failed: ${(e as Error).message}`,
+            'error',
+          );
+        }
+        await persist();
+      }
+      return void (await draw());
+    }
     if (key.name === 'pageup' || key.name === 'pagedown') {
       pager.scrollBy(key.name === 'pageup' ? -0.5 : 0.5, 'viewport');
       return renderer.requestRender();
@@ -878,11 +943,8 @@ export async function runTui(store: Store, opts: TuiOptions): Promise<void> {
       else if (key.name === 'm') await editMessage();
       else if (key.name === 'b') await editBody();
       else if (key.name === 'p') {
-        try {
-          await publish();
-        } catch (e) {
-          say(`Failed: ${(e as Error).message}`, 'error');
-        }
+        posting = {event: DEFAULT_REVIEW_EVENT};
+        say('');
       }
       await refreshBody();
       await persist();
@@ -956,3 +1018,6 @@ function excerptLines(text: string): string[] {
       ]
     : all;
 }
+
+/** A failed post, with a message that is ready to show the reviewer. */
+class PostError extends Error {}

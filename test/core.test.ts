@@ -9,7 +9,10 @@ import {
   composeReviewBody,
   parseDiff,
   parsePrUrl,
+  DEFAULT_REVIEW_EVENT,
+  explainPostError,
   quoteBlock,
+  REVIEW_CHOICES,
   reviewFooter,
   summarizeComments,
   validateTarget,
@@ -279,4 +282,40 @@ test('intention section uses the understanding-and-intention heading', () => {
       '(please correct reviewer if wrong):_\n\n> why',
   );
   expect(body).not.toContain('written during the review');
+});
+
+test('review choices map to GitHub events, Comment first and default', () => {
+  expect(REVIEW_CHOICES.map((c) => [c.label, c.event])).toEqual([
+    ['Comment', 'COMMENT'],
+    ['Request changes', 'REQUEST_CHANGES'],
+    ['Approve', 'APPROVE'],
+  ]);
+  expect(DEFAULT_REVIEW_EVENT).toBe('COMMENT');
+  expect(REVIEW_CHOICES[0]!.event).toBe(DEFAULT_REVIEW_EVENT);
+  expect(new Set(REVIEW_CHOICES.map((c) => c.key)).size).toBe(3);
+});
+
+test('payload event is Comment by default and the chosen one otherwise', () => {
+  const base = {prefix: '[me + m]', general: 'B', headSha: 'abc'};
+  const comments = [{path: 'a.ts', line: 1, body: 'x'}];
+  expect(buildReviewPayload({...base, comments}).event).toBe('COMMENT');
+  for (const {event} of REVIEW_CHOICES) {
+    const p = buildReviewPayload({...base, comments, event});
+    expect(p.event).toBe(event);
+    expect(p.comments).toHaveLength(1);
+    expect(p.body).toBe('[me + m] B');
+  }
+});
+
+test('explainPostError names the type and says the review is kept', () => {
+  const own = explainPostError(
+    'APPROVE',
+    'gh api failed: Unprocessable Entity: Can not approve your own pull request (HTTP 422)',
+  );
+  expect(own).toContain('Approve');
+  expect(own).toContain('does not let you approve on your own PR');
+  expect(own).toContain('your review is kept');
+  const other = explainPostError('COMMENT', 'HTTP 500');
+  expect(other).toContain('HTTP 500');
+  expect(other).not.toContain('own PR');
 });
