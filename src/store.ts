@@ -52,6 +52,21 @@ export async function readBodyDraft(dir: string): Promise<string | null> {
   return (await f.exists()) ? (await f.text()).trim() || null : null;
 }
 
+/** Path of the reviewer's message to the author inside a review directory. */
+export const messagePath = (dir: string): string =>
+  join(dir, 'review-message.md');
+
+/**
+ * Reads the reviewer's message to the author.
+ *
+ * @param dir Review directory.
+ * @return The message, or empty when the reviewer has not written one.
+ */
+export async function readMessage(dir: string): Promise<string> {
+  const f = Bun.file(messagePath(dir));
+  return (await f.exists()) ? (await f.text()).trim() : '';
+}
+
 /**
  * Opens a review, resuming from state.json if it exists. Otherwise fetches
  * the PR and creates the review directory.

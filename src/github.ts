@@ -209,24 +209,28 @@ export function summarizeComments(comments: InlineComment[]): string {
 
 /** The parts of the review body, before the reviewer prefix is added. */
 export interface BodyParts {
-  /** The reviewer's own message to the author. */
+  /** The reviewer's message to the author; empty for none. */
   message: string;
   /** The intention the reviewer stated during the review; may be empty. */
   intention: string;
   /** Inline comments, summarised in two lines. */
   comments: InlineComment[];
+  /** General comments that apply across the whole review; may be empty. */
+  general: string;
 }
 
 /**
- * Builds the review body: the reviewer's message, then their intention as a
- * quote block (so GitHub shows it was written as part of the review process,
- * not to the author), then a two-line summary of the inline comments.
+ * Builds the review body, in order: the reviewer's message to the author (if
+ * any), their intention as a quote block (so GitHub shows it was written as
+ * part of the review process, not to the author), a two-line summary of the
+ * inline comments, then the general comments that apply across the review.
  *
- * @param parts Message, intention and inline comments.
+ * @param parts Message, intention, inline comments and general comments.
  * @return The Markdown body, without the reviewer prefix.
  */
 export function composeReviewBody(parts: BodyParts): string {
-  const sections = [parts.message.trim()];
+  const sections: string[] = [];
+  if (parts.message.trim()) sections.push(parts.message.trim());
   if (parts.intention.trim())
     sections.push(
       '_Reviewer’s intention for this change (written during the ' +
@@ -236,6 +240,8 @@ export function composeReviewBody(parts: BodyParts): string {
   sections.push(
     `**Summary of inline comments**\n\n${summarizeComments(parts.comments)}`,
   );
+  if (parts.general.trim())
+    sections.push(`**General comments**\n\n${parts.general.trim()}`);
   return sections.join('\n\n');
 }
 

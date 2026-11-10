@@ -52,9 +52,11 @@ import {
   bodyPath,
   commentsPath,
   getSection,
+  messagePath,
   parseInline,
   readBodyDraft,
   readComments,
+  readMessage,
   setSection,
   type Store,
 } from './store';
@@ -434,7 +436,10 @@ export async function runTui(store: Store, opts: TuiOptions): Promise<void> {
               ? 'comment on the selection'
               : 'path:line comment',
           ),
-          span('   (or: general: text for the review body)', 'muted'),
+          span(
+            '   (or: general: text that applies to the whole review)',
+            'muted',
+          ),
         ],
         ideLine(),
         ...candidateLines(),
@@ -477,7 +482,7 @@ export async function runTui(store: Store, opts: TuiOptions): Promise<void> {
                 span(
                   bodyEdited
                     ? ' (edited, from review-body.md):'
-                    : ' (b to edit before posting):',
+                    : ' (m: add a message · b: edit before posting):',
                   'muted',
                 ),
               ],
@@ -500,7 +505,7 @@ export async function runTui(store: Store, opts: TuiOptions): Promise<void> {
           : []),
       ]);
       hint +=
-        ' · s start review · e edit comments.md · b edit body · p ' +
+        ' · s start review · e edit comments.md · m message · b edit body · p ' +
         (opts.post ? 'post' : 'dry-run payload');
     }
     pager.show(state.page);
@@ -690,7 +695,7 @@ export async function runTui(store: Store, opts: TuiOptions): Promise<void> {
 
   /**
    * The review body to post: the reviewer's edited draft if there is one,
-   * else message, quoted intention and two-line summary from comments.md.
+   * else message, quoted intention, two-line summary and general comments.
    */
   async function currentBody(
     md: string,
@@ -700,8 +705,9 @@ export async function runTui(store: Store, opts: TuiOptions): Promise<void> {
     if (draft) return {text: draft, edited: true};
     return {
       text: composeReviewBody({
-        message: getSection(md, 'General') || 'Review comments below.',
+        message: await readMessage(store.dir),
         intention: getSection(md, 'Intention') || state.intention.text,
+        general: getSection(md, 'General'),
         comments,
       }),
       edited: false,
@@ -724,6 +730,14 @@ export async function runTui(store: Store, opts: TuiOptions): Promise<void> {
 
   async function editComments(): Promise<void> {
     await openEditor(commentsPath(store.dir));
+  }
+
+  /** Opens your message to the author in $EDITOR (review-message.md). */
+  async function editMessage(): Promise<void> {
+    if (!(await Bun.file(messagePath(store.dir)).exists()))
+      await Bun.write(messagePath(store.dir), '');
+    await openEditor(messagePath(store.dir));
+    say('Message saved to review-message.md.', 'muted');
   }
 
   /** Opens the review body in $EDITOR, creating review-body.md if needed. */
@@ -855,6 +869,7 @@ export async function runTui(store: Store, opts: TuiOptions): Promise<void> {
     if (state.page === 4 && !busy) {
       if (key.name === 's') await startReview();
       else if (key.name === 'e') await editComments();
+      else if (key.name === 'm') await editMessage();
       else if (key.name === 'b') await editBody();
       else if (key.name === 'p') {
         try {

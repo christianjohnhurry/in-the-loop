@@ -117,7 +117,7 @@ Write your review comments here. Every line must be in the diff.
 | --------------------- | ------------------------------------------- |
 | `path:line comment`   | Comment on one line                         |
 | `path:10-15 comment`  | Comment on a range                          |
-| `general: text`       | Text for the review body                    |
+| `general: text`       | General comment that applies to the whole review |
 | `42 comment`          | Line in the open file (VS Code, no selection) |
 | `42-48 comment`       | Range in the open file (VS Code, no selection) |
 
@@ -129,12 +129,13 @@ With a VS Code selection, just type the comment. Press Enter to add it.
 | --- | --------------------------------------- |
 | `s` | Start review (LLM feedback on comments) |
 | `e` | Edit `comments.md` in `$EDITOR`         |
+| `m` | Write a message to the author in `$EDITOR` |
 | `b` | Edit the review body in `$EDITOR`       |
 | `p` | Build the payload and post it           |
 
 `s` and `p` need a complete checklist, a passed intention and at least one comment. Without `--post`, `p` is a dry run and only saves `payload.json`.
 
-The review body has three parts: your message (`general:` text on the Comments page; "Review comments below." if none), your intention as a `> ` quote block so GitHub shows it was written during the review, and a two-line summary of the inline comments. The page shows it; press `b` to edit it before `p`. The edit is saved as `review-body.md` and posted as written (delete the file to rebuild it). Everything goes up as one review with the inline comments.
+The review body has four parts, in this order: (1) your message to the author, which you write with `m` (saved as `review-message.md`; left out if you write none); (2) your intention as a `> ` quote block, so GitHub shows it was written during the review; (3) a two-line summary of the inline comments; (4) your general comments (`general:` text on the Comments page, which apply across the whole review). The page shows the body. Press `b` to edit the whole body before `p`; the edit is saved as `review-body.md` and posted as written (delete the file to rebuild it). Everything goes up as one review with the inline comments.
 
 ## VS Code integration
 
@@ -172,6 +173,7 @@ State lives in `reviews/<repo>-<pr>/`:
 | `comments.md`  | Your comments and the intention       |
 | `state.json`   | Checklist, intention, page, feedback, model |
 | `diff.patch`   | The PR diff                           |
+| `review-message.md` | Your message to the author, after `m` |
 | `review-body.md` | Your edited review body, after `b` |
 | `payload.json` | The review payload, after `p`         |
 

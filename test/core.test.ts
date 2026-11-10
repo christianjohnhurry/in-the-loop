@@ -19,8 +19,10 @@ import {
   bodyPath,
   formatInline,
   getSection,
+  messagePath,
   parseInline,
   readBodyDraft,
+  readMessage,
   setSection,
 } from '../src/store';
 import type {State} from '../src/types';
@@ -166,41 +168,60 @@ test('summarizeComments is two lines: counts, then files', () => {
   expect(summarizeComments([]).split('\n')).toHaveLength(2);
 });
 
-test('review body: message, quoted intention, then summary, in order', () => {
+test('review body: message, quote, summary, then general, in order', () => {
   const body = composeReviewBody({
     message: 'Thanks for this.\n',
     intention: 'Adds a greeter.\nIt is pure.',
     comments: [{path: 'a.ts', line: 1, body: 'x'}],
+    general: 'Please add docs.',
   });
   const message = body.indexOf('Thanks for this.');
   const quote = body.indexOf('> Adds a greeter.\n> It is pure.');
   const summary = body.indexOf('- 1 inline comment on 1 file.');
+  const general = body.indexOf('Please add docs.');
   expect(message).toBe(0);
   expect(quote).toBeGreaterThan(message);
   expect(summary).toBeGreaterThan(quote);
+  expect(general).toBeGreaterThan(summary);
 });
 
-test('review body omits the quote when there is no intention', () => {
-  const body = composeReviewBody({message: 'Hi', intention: ' ', comments: []});
+test('review body leaves out empty parts and adds no filler', () => {
+  const body = composeReviewBody({
+    message: '',
+    intention: ' ',
+    comments: [],
+    general: '',
+  });
   expect(body).not.toContain('>');
-  expect(body.startsWith('Hi')).toBe(true);
+  expect(body).not.toContain('General comments');
+  expect(body.startsWith('**Summary of inline comments**')).toBe(true);
 });
 
 test('composed body is the single review body, prefixed once', () => {
+  const comments = [{path: 'a.ts', line: 1, body: 'x'}];
   const body = composeReviewBody({
     message: 'Hi',
     intention: 'why',
-    comments: [{path: 'a.ts', line: 1, body: 'x'}],
+    comments,
+    general: '',
   });
   const p = buildReviewPayload({
     prefix: '[me + m]',
     general: body,
     headSha: 'abc',
-    comments: [{path: 'a.ts', line: 1, body: 'x'}],
+    comments,
   });
   expect(p.body.startsWith('[me + m] Hi')).toBe(true);
   expect(p.body).toContain('\n> why\n');
   expect(p.comments).toHaveLength(1);
+});
+
+test('readMessage: empty when absent, else trimmed text', async () => {
+  const dir = await mkdtemp(join(tmpdir(), 'msg-'));
+  expect(await readMessage(dir)).toBe('');
+  await Bun.write(messagePath(dir), '  Hello author\n');
+  expect(await readMessage(dir)).toBe('Hello author');
+  await rm(dir, {recursive: true});
 });
 
 test('readBodyDraft: null when absent or blank, else trimmed text', async () => {
