@@ -125,13 +125,15 @@ With a VS Code selection, just type the comment. Press Enter to add it.
 
 ### Review
 
-| Key | Action                                  |
-| --- | --------------------------------------- |
-| `s` | Start review (LLM feedback on comments) |
-| `e` | Edit `comments.md` in `$EDITOR`         |
-| `p` | Build the payload and post it           |
+| Key | Action                                                |
+| --- | ----------------------------------------------------- |
+| `s` | Start review, or re-run it (LLM feedback on comments) |
+| `e` | Edit `comments.md` in `$EDITOR`                       |
+| `p` | Build the payload and post it                         |
 
 `s` and `p` need a complete checklist, a passed intention and at least one comment. Without `--post`, `p` is a dry run and only saves `payload.json`.
+
+The review can be re-run as often as you like: press `e` to edit `comments.md`, then `s` again. Each run reads `comments.md` as it is now, so it sees your edits, and replaces the previous feedback. The heading shows which run the feedback is from.
 
 ## VS Code integration
 
@@ -167,7 +169,7 @@ State lives in `reviews/<repo>-<pr>/`:
 | File           | Contents                              |
 | -------------- | ------------------------------------- |
 | `comments.md`  | Your comments and the intention       |
-| `state.json`   | Checklist, intention, page, feedback, model |
+| `state.json`   | Checklist, intention, page, feedback, review runs, model |
 | `diff.patch`   | The PR diff                           |
 | `payload.json` | The review payload, after `p`         |
 

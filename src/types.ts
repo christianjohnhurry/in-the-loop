@@ -32,6 +32,8 @@ export interface State {
   intention: {status: 'open' | 'passed'; text: string; hint: string};
   /** The AI's feedback on the reviewer's comments. */
   feedback: string;
+  /** How many review runs have completed; absent before the first. */
+  reviewRuns?: number;
   /** Model the reviewer picked on the start page; absent if never picked. */
   model?: {providerID: string; modelID: string};
 }
