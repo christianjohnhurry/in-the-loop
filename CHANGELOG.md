@@ -22,6 +22,20 @@ uses [Semantic Versioning](https://semver.org/).
   `s re-run review` once a run has completed.
 - A run that fails keeps the feedback from the last successful run.
 
+## [0.8.2] - 2026-11-10 (SWE-22)
+
+### Fixed
+
+- The page tabs stay fixed at the top of the window; only the page body
+  scrolls, so a long Enquire transcript no longer pushes them out of sight.
+- Each page has its own scroll region and offset. Switching pages no longer
+  carries the Enquire transcript's scroll height over, so a short page opens
+  at its own top and each page remembers where you left it.
+
+### Added
+
+- PgUp/PgDn scroll the page body. Enquire still follows the newest message.
+
 ## [0.8.1] - 2026-11-07 (SWE-21)
 
 ### Added

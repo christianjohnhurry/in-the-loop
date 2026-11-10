@@ -18,6 +18,7 @@ in-the-loop/
 │   ├── target.ts                  Pick the PR: the URL argument, else the open PR for this branch
 │   ├── tui.ts                     The terminal UI: pages, key handling, drawing, glue to everything below
 │   ├── start.ts                   Start page: logo, repo/branch/model lines, model picker
+│   ├── pager.ts                   Page body: one scroll region per page under the fixed tab bar
 │   ├── theme.ts                   The one colour palette and styled-text helpers
 │   ├── logo-svg.ts                Renders the start-page logo as SVG (for the README)
 │   ├── types.ts                   Shared types: PR info, state, inline comments, verdicts

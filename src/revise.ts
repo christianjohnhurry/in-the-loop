@@ -4,8 +4,7 @@ import {reviewGates} from './gates';
 
 /** Outcome of one review run from the Review page. */
 export type ReviseResult =
-  | {ok: true; run: number}
-  | {ok: false; missing: string[]};
+  {ok: true; run: number} | {ok: false; missing: string[]};
 
 /**
  * Runs one LLM review of the reviewer's comments and stores the feedback.
