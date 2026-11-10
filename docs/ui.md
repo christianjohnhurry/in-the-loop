@@ -232,7 +232,7 @@ Gated: `s` and `p` need a complete checklist, a passed intention and at least on
 
 1. **Gates**: `all passed`, or what is missing.
 2. **Mode**: `dry run` or red `POST (live)` with `--post`.
-3. **Review body**: your message to the author (`m`), the intention as a `> ` quote, a two-line summary of the inline comments, then your general comments. `b` edits the whole body.
+3. **Review body**: your message to the author (`m`), the intention as a `> ` quote, a two-line summary of the inline comments, then your general comments. Posting adds a footer with the version and model. `b` edits the whole body.
 4. **Feedback**: one-shot LLM feedback on accuracy and fairness, after `s`. Pressing `s` again after an edit re-runs it on the current `comments.md`; the heading shows the run number.
 5. **Payload**: the review that `p` built, also saved to `payload.json`.
 
@@ -301,7 +301,7 @@ In words, per pane:
 - **Intention** sends the reviewer's statement, the PR description and the diff to the `review-judge` agent in OpenCode. Only a parsed `pass` or `retry` and a length-capped hint come back, and a hint that copies the PR description is replaced. On `pass`, the reviewer's own text goes into the Intention section of `comments.md`.
 - **Enquire** sends the question, the current VS Code selection and the diff to the read-only `review-enquire` agent. The answer is shown and then dropped. It never reaches `comments.md`, the Review page or GitHub.
 - **Comments** takes the file and lines from the typed text or from the VS Code selection, checks them against the diff, and appends to `comments.md`. No LLM.
-- **Review** checks the gates from `state.json` and `comments.md`, sends `comments.md` to the judge for feedback on `s`, and on `p` builds the review body (your message, quoted intention, two-line summary, general comments; `m` and `b` edit it), prefixes every comment with `[$REVIEWER + $MODEL]`, writes `payload.json` and, with `--post`, posts one GitHub review.
+- **Review** checks the gates from `state.json` and `comments.md`, sends `comments.md` to the judge for feedback on `s`, and on `p` builds the review body (your message, quoted intention, two-line summary, general comments; `m` and `b` edit it), ends it with a footer naming the review-tui version and model, prefixes every comment with `[$REVIEWER + $MODEL]`, writes `payload.json` and, with `--post`, posts one GitHub review.
 
 ### VS Code selection
 

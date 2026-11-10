@@ -10,9 +10,11 @@ import {
   parseDiff,
   parsePrUrl,
   quoteBlock,
+  reviewFooter,
   summarizeComments,
   validateTarget,
 } from '../src/github';
+import {VERSION} from '../src/version';
 import {FALLBACK_HINT, HINT_CAP, parseVerdict} from '../src/guard';
 import {judgeIntention, reviewComments} from '../src/llm';
 import {
@@ -232,4 +234,49 @@ test('readBodyDraft: null when absent or blank, else trimmed text', async () => 
   await Bun.write(bodyPath(dir), 'edited body\n');
   expect(await readBodyDraft(dir)).toBe('edited body');
   await rm(dir, {recursive: true});
+});
+
+test('review footer links to the repo and names version and model', () => {
+  expect(reviewFooter('1.2.3', 'anthropic/x')).toBe(
+    "Reviewed with [In The Loop's review-tui]" +
+      '(https://github.com/christianjohnhurry/in-the-loop) ' +
+      '(v1.2.3) using anthropic/x',
+  );
+});
+
+test('payload body ends with the footer, after the prefixed body', () => {
+  const footer = reviewFooter(VERSION, 'p/m');
+  const p = buildReviewPayload({
+    prefix: '[me + p/m]',
+    general: 'Body',
+    headSha: 'abc',
+    comments: [],
+    footer,
+  });
+  expect(p.body).toBe(`[me + p/m] Body\n\n${footer}`);
+  expect(footer).toContain(`(v${VERSION})`);
+});
+
+test('payload has no footer when none is given', () => {
+  const p = buildReviewPayload({
+    prefix: '[me + m]',
+    general: 'Body',
+    headSha: 'abc',
+    comments: [],
+  });
+  expect(p.body).toBe('[me + m] Body');
+});
+
+test('intention section uses the understanding-and-intention heading', () => {
+  const body = composeReviewBody({
+    message: '',
+    intention: 'why',
+    comments: [],
+    general: '',
+  });
+  expect(body).toContain(
+    '_Reviewer’s understanding of the PR contents and intention ' +
+      '(please correct reviewer if wrong):_\n\n> why',
+  );
+  expect(body).not.toContain('written during the review');
 });
