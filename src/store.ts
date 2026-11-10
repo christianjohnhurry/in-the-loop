@@ -38,6 +38,35 @@ const COMMENTS_HEADER =
 /** Path of comments.md inside a review directory. */
 export const commentsPath = (dir: string): string => join(dir, 'comments.md');
 
+/** Path of the editable review body draft inside a review directory. */
+export const bodyPath = (dir: string): string => join(dir, 'review-body.md');
+
+/**
+ * Reads the edited review body draft.
+ *
+ * @param dir Review directory.
+ * @return The draft, or null when the reviewer has not made one.
+ */
+export async function readBodyDraft(dir: string): Promise<string | null> {
+  const f = Bun.file(bodyPath(dir));
+  return (await f.exists()) ? (await f.text()).trim() || null : null;
+}
+
+/** Path of the reviewer's message to the author inside a review directory. */
+export const messagePath = (dir: string): string =>
+  join(dir, 'review-message.md');
+
+/**
+ * Reads the reviewer's message to the author.
+ *
+ * @param dir Review directory.
+ * @return The message, or empty when the reviewer has not written one.
+ */
+export async function readMessage(dir: string): Promise<string> {
+  const f = Bun.file(messagePath(dir));
+  return (await f.exists()) ? (await f.text()).trim() : '';
+}
+
 /**
  * Opens a review, resuming from state.json if it exists. Otherwise fetches
  * the PR and creates the review directory.

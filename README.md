@@ -14,6 +14,20 @@ A terminal UI that walks a reviewer through a GitHub PR: checklist, intention, e
 
 The AI checks the reviewer's understanding and comments. The reviewer stays the author.
 
+```
+ ◀ [ Checklist ]  Intention  Enquire  Comments  Review ▶     ✻ In The Loop
+┌─────────────────────────────────────────────────────────────────────┐
+│ [x] Design   [ ] Tests   …       page body (differs per page)       │
+├─────────────────────────────────────────────────────────────────────┤
+│ status line                                                         │
+│ > input (Intention, Enquire, Comments)                              │
+│ ←/→ pages · Esc leave input · Ctrl+C quit                           │
+└─────────────────────────────────────────────────────────────────────┘
+  VS Code selection ──▶ Enquire, Comments      OpenCode ◀──▶ judge, enquire
+```
+
+Every page, its keys, and how data flows between the panes, VS Code and the LLM: [`docs/ui.md`](docs/ui.md). Where the code lives: [`docs/repo-layout.md`](docs/repo-layout.md).
+
 ## Requirements
 
 - [Bun](https://bun.sh).
@@ -25,24 +39,42 @@ The AI checks the reviewer's understanding and comments. The reviewer stays the 
 
 ```sh
 bun install
+bun src/cli.ts                                                     # review the open PR for the current branch
 bun src/cli.ts https://github.com/<owner>/<repo>/pull/<n>          # dry run
 bun src/cli.ts https://github.com/<owner>/<repo>/pull/<n> --post   # really post
 ```
+
+Without a URL, review-tui finds the open PR for the branch you have checked out (via `gh pr view`). It must be run inside a git repo on a branch, not a detached HEAD; otherwise it exits with code 2 and suggests passing a URL. A URL argument always wins and works from any directory.
 
 Relaunching the same PR resumes the review.
 
 ## Pages
 
-On launch a start page shows the repo and the PR branch. Press Enter to continue. A resumed review returns to its last page.
+On launch a start page shows the repo, the PR branch and the model the judge will use. Press Enter to continue. A resumed review returns to its last page.
+
+#### Start page model picker
+
+Press `m` to open a list of every model OpenCode has available to you (configured and authenticated providers). The list is read from OpenCode, not hardcoded.
+
+| Key   | Action                                    |
+| ----- | ----------------------------------------- |
+| `m`   | Open the model list                       |
+| Type  | Filter by provider, model ID or name      |
+| ↑/↓   | Move (the list scrolls)                   |
+| Enter | Select the model and close the list       |
+| Esc   | Close the list without changing the model |
+
+Enter starts the review only when the list is closed. If OpenCode cannot list models, the start page shows an error line and the current model, and Enter still starts.
 
 Switch pages with ←/→. Arrow keys switch pages while the input is empty. Ctrl+C quits.
 
-| Key   | Action                                                   |
-| ----- | -------------------------------------------------------- |
-| ←/→   | Previous / next page                                     |
-| Esc   | Leave the text input (so ←/→ always work)                |
-| Enter | Type again (when the input is off); otherwise submit     |
-| `i`   | Type again (when the input is off)                       |
+| Key       | Action                                                   |
+| --------- | -------------------------------------------------------- |
+| ←/→       | Previous / next page                                     |
+| PgUp/PgDn | Scroll the page body (the tab bar stays fixed)           |
+| Esc       | Leave the text input (so ←/→ always work)                |
+| Enter     | Type again (when the input is off); otherwise submit     |
+| `i`       | Type again (when the input is off)                       |
 
 ### Checklist
 
@@ -85,7 +117,7 @@ Write your review comments here. Every line must be in the diff.
 | --------------------- | ------------------------------------------- |
 | `path:line comment`   | Comment on one line                         |
 | `path:10-15 comment`  | Comment on a range                          |
-| `general: text`       | Text for the review body                    |
+| `general: text`       | General comment that applies to the whole review |
 | `42 comment`          | Line in the open file (VS Code, no selection) |
 | `42-48 comment`       | Range in the open file (VS Code, no selection) |
 
@@ -93,13 +125,21 @@ With a VS Code selection, just type the comment. Press Enter to add it.
 
 ### Review
 
-| Key | Action                                  |
-| --- | --------------------------------------- |
-| `s` | Start review (LLM feedback on comments) |
-| `e` | Edit `comments.md` in `$EDITOR`         |
-| `p` | Build the payload and post it           |
+| Key | Action                                                |
+| --- | ----------------------------------------------------- |
+| `s` | Start review, or re-run it (LLM feedback on comments) |
+| `e` | Edit `comments.md` in `$EDITOR`                       |
+| `m` | Write a message to the author in `$EDITOR`            |
+| `b` | Edit the review body in `$EDITOR`                     |
+| `p` | Choose the review type, then post it              |
 
 `s` and `p` need a complete checklist, a passed intention and at least one comment. Without `--post`, `p` is a dry run and only saves `payload.json`.
+
+`p` opens a prompt for the review type: **Comment** (the default), **Request changes** or **Approve**. Press `←`/`→` or `c`/`r`/`a` to choose, Enter to post (or save the dry-run payload), Esc to cancel. The chosen type is shown in the prompt before anything is sent, and becomes the `event` of the review (`COMMENT`, `REQUEST_CHANGES`, `APPROVE`). If GitHub refuses it, for example approving or requesting changes on your own PR, the error is shown, nothing is posted, and the prompt stays open so you can pick another type; your comments, message and body are kept.
+
+The review can be re-run as often as you like: press `e` to edit `comments.md`, then `s` again. Each run reads `comments.md` as it is now, so it sees your edits, and replaces the previous feedback. The heading shows which run the feedback is from.
+
+The review body has four parts, in this order: (1) your message to the author, which you write with `m` (saved as `review-message.md`; left out if you write none); (2) your intention as a `> ` quote block, so GitHub shows it was written during the review; (3) a two-line summary of the inline comments; (4) your general comments (`general:` text on the Comments page, which apply across the whole review). The page shows the body. Press `b` to edit the whole body before `p`; the edit is saved as `review-body.md` and posted as written (delete the file to rebuild it). Posted bodies end with a footer, added at post time and so not shown in the preview or `review-body.md`: `Reviewed with [In The Loop's review-tui](https://github.com/christianjohnhurry/in-the-loop) (vX.Y.Z) using provider/model`. The intention is introduced as "Reviewer’s understanding of the PR contents and intention (please correct reviewer if wrong)". Everything goes up as one review with the inline comments.
 
 ## VS Code integration
 
@@ -124,7 +164,7 @@ The Comments page shows the active file or selection (`src/llm.ts:L42-48`). With
 | `OPENCODE_URL` | Use an existing OpenCode server instead of spawning one.                     |
 | `$EDITOR`      | Editor for `e` on the Review page. Default: `vi`.                            |
 
-`$MODEL` is the model the judge runs on. A malformed value exits at startup. An unknown model shows as a failed judge call (retry). When unset, OpenCode's own default model runs. The prefix then shows the model OpenCode reported using, or `unknown` if no LLM call has completed this session (e.g. a resumed review).
+`$MODEL` is the model the judge runs on. A malformed value exits at startup. An unknown model shows as a failed judge call (retry). The start page pre-selects it, and you can pick another there. When unset, the start page pre-selects OpenCode's default (its configured `model`, else the first provider's default). A model picked on the start page is saved in `state.json` and wins over `$MODEL` when the review is resumed. The prefix then shows the model OpenCode reported using, or `unknown` if no LLM call has completed this session (e.g. a resumed review).
 
 LLM calls go through a local OpenCode server, using the read-only agents in `.opencode/agents/` (`review-judge.md`, `review-enquire.md`).
 
@@ -135,8 +175,10 @@ State lives in `reviews/<repo>-<pr>/`:
 | File           | Contents                              |
 | -------------- | ------------------------------------- |
 | `comments.md`  | Your comments and the intention       |
-| `state.json`   | Checklist, intention, page, feedback  |
+| `state.json`   | Checklist, intention, page, feedback, review runs, model |
 | `diff.patch`   | The PR diff                           |
+| `review-message.md` | Your message to the author, after `m` |
+| `review-body.md` | Your edited review body, after `b` |
 | `payload.json` | The review payload, after `p`         |
 
 ## Development
@@ -148,6 +190,8 @@ bun run lint
 bun run typecheck
 bun src/cli.ts --version
 ```
+
+Where each file lives and what it does: [`docs/repo-layout.md`](docs/repo-layout.md).
 
 User-visible changes are recorded in `CHANGELOG.md`, one entry per ticket, with a version bump in `package.json`.
 

@@ -173,6 +173,134 @@ export function validateRange(
   return null;
 }
 
+/**
+ * Renders text as a Markdown quote block, one `> ` per line.
+ *
+ * @param text The text to quote.
+ * @return The quoted text; blank lines become a bare `>`.
+ */
+export function quoteBlock(text: string): string {
+  return text
+    .trim()
+    .split('\n')
+    .map((l) => (l.trim() === '' ? '>' : `> ${l}`))
+    .join('\n');
+}
+
+/**
+ * Summarises inline comments in exactly two lines: how many comments on how
+ * many files, then which files.
+ *
+ * @param comments The inline comments.
+ * @return Two Markdown list lines, joined by a newline.
+ */
+export function summarizeComments(comments: InlineComment[]): string {
+  const perFile = new Map<string, number>();
+  for (const c of comments) perFile.set(c.path, (perFile.get(c.path) ?? 0) + 1);
+  const plural = (count: number, word: string): string =>
+    `${count} ${word}${count === 1 ? '' : 's'}`;
+  if (comments.length === 0) return '- No inline comments.\n- No files.';
+  const files = [...perFile].map(([p, k]) => `\`${p}\` (${k})`).join(', ');
+  return (
+    `- ${plural(comments.length, 'inline comment')} on ` +
+    `${plural(perFile.size, 'file')}.\n- Files: ${files}.`
+  );
+}
+
+/** The parts of the review body, before the reviewer prefix is added. */
+export interface BodyParts {
+  /** The reviewer's message to the author; empty for none. */
+  message: string;
+  /** The intention the reviewer stated during the review; may be empty. */
+  intention: string;
+  /** Inline comments, summarised in two lines. */
+  comments: InlineComment[];
+  /** General comments that apply across the whole review; may be empty. */
+  general: string;
+}
+
+/**
+ * Builds the review body, in order: the reviewer's message to the author (if
+ * any), their intention as a quote block (so GitHub shows it was written as
+ * part of the review process, not to the author), a two-line summary of the
+ * inline comments, then the general comments that apply across the review.
+ *
+ * @param parts Message, intention, inline comments and general comments.
+ * @return The Markdown body, without the reviewer prefix.
+ */
+export function composeReviewBody(parts: BodyParts): string {
+  const sections: string[] = [];
+  if (parts.message.trim()) sections.push(parts.message.trim());
+  if (parts.intention.trim())
+    sections.push(
+      '_Reviewer’s understanding of the PR contents and intention ' +
+        '(please correct reviewer if wrong):_',
+      quoteBlock(parts.intention),
+    );
+  sections.push(
+    `**Summary of inline comments**\n\n${summarizeComments(parts.comments)}`,
+  );
+  if (parts.general.trim())
+    sections.push(`**General comments**\n\n${parts.general.trim()}`);
+  return sections.join('\n\n');
+}
+
+/** The repo that review-tui's footer links to. */
+export const REPO_URL = 'https://github.com/christianjohnhurry/in-the-loop';
+
+/**
+ * The footer that ends every posted review body.
+ *
+ * @param version The app's version, e.g. "0.10.0".
+ * @param model The model used for the review, e.g. "anthropic/claude-x".
+ * @return One Markdown line linking to the repo.
+ */
+export function reviewFooter(version: string, model: string): string {
+  return (
+    `Reviewed with [In The Loop's review-tui](${REPO_URL}) ` +
+    `(v${version}) using ${model}`
+  );
+}
+
+/** The review types GitHub allows, as the `event` of a review. */
+export type ReviewEvent = 'COMMENT' | 'REQUEST_CHANGES' | 'APPROVE';
+
+/** A review type as offered when posting. */
+export interface ReviewChoice {
+  event: ReviewEvent;
+  /** Shown to the reviewer. */
+  label: string;
+  /** Key that picks it in the posting prompt. */
+  key: string;
+}
+
+/** The review types offered when posting; the first is the default. */
+export const REVIEW_CHOICES: readonly ReviewChoice[] = [
+  {event: 'COMMENT', label: 'Comment', key: 'c'},
+  {event: 'REQUEST_CHANGES', label: 'Request changes', key: 'r'},
+  {event: 'APPROVE', label: 'Approve', key: 'a'},
+];
+
+/** The review type used unless the reviewer picks another. */
+export const DEFAULT_REVIEW_EVENT: ReviewEvent = 'COMMENT';
+
+/**
+ * Turns a failed post into a message that says what to do next. GitHub
+ * refuses to approve or request changes on your own PR.
+ *
+ * @param event The review type that was refused.
+ * @param message The error text from `gh`.
+ * @return A one-line message for the reviewer.
+ */
+export function explainPostError(event: ReviewEvent, message: string): string {
+  const label = REVIEW_CHOICES.find((c) => c.event === event)?.label ?? event;
+  const own = /own pull request/i.test(message);
+  const reason = own
+    ? `GitHub does not let you ${label.toLowerCase()} on your own PR`
+    : message;
+  return `Post failed (${label}): ${reason}. Nothing was posted and your review is kept: pick again or Esc.`;
+}
+
 /** What goes into a review. */
 export interface ReviewInput {
   /** Prepended to every comment, e.g. "[me + model]". */
@@ -183,12 +311,16 @@ export interface ReviewInput {
   comments: InlineComment[];
   /** Commit the lines refer to. */
   headSha: string;
+  /** Ends the review body, after a blank line; omitted when empty. */
+  footer?: string;
+  /** The review type; defaults to {@link DEFAULT_REVIEW_EVENT}. */
+  event?: ReviewEvent;
 }
 
-/** The body of `POST /pulls/{n}/reviews` for a single COMMENT review. */
+/** The body of `POST /pulls/{n}/reviews` for a single review. */
 export interface ReviewPayload {
   commit_id: string;
-  event: 'COMMENT';
+  event: ReviewEvent;
   body: string;
   comments: {
     path: string;
@@ -202,8 +334,9 @@ export interface ReviewPayload {
 }
 
 /**
- * Builds one GitHub review: the general comment as the body and each inline
- * comment on its line, all prefixed so AI lineage is visible.
+ * Builds one GitHub review: the general comment as the body (followed by the
+ * footer, if any) and each inline comment on its line, all prefixed so AI
+ * lineage is visible.
  *
  * @param input Prefix, general comment, inline comments and head commit.
  * @return The payload to send (or print, in a dry run).
@@ -212,8 +345,8 @@ export function buildReviewPayload(input: ReviewInput): ReviewPayload {
   const tag = (s: string): string => `${input.prefix} ${s}`;
   return {
     commit_id: input.headSha,
-    event: 'COMMENT' as const,
-    body: tag(input.general),
+    event: input.event ?? DEFAULT_REVIEW_EVENT,
+    body: tag(input.general) + (input.footer ? `\n\n${input.footer}` : ''),
     comments: input.comments.map((c) => ({
       path: c.path,
       line: c.line,

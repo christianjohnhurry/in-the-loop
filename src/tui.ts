@@ -13,9 +13,15 @@ import {CHECKLIST} from './checklist';
 import {reviewGates} from './gates';
 import {
   buildReviewPayload,
+  DEFAULT_REVIEW_EVENT,
+  explainPostError,
+  composeReviewBody,
   ghLogin,
   parseDiff,
   postReview,
+  REVIEW_CHOICES,
+  type ReviewEvent,
+  reviewFooter,
   validateRange,
 } from './github';
 import {
@@ -26,20 +32,41 @@ import {
   toRepoPath,
   type FoundIde,
 } from './ide';
+import {Pager} from './pager';
 import {enquire, subjectLabel, type Subject} from './enquire';
-import {currentModelLabel, judgeIntention, reviewComments} from './llm';
-import {CORNER_LOGO, cornerLogo, startPage} from './start';
+import {
+  currentModelLabel,
+  fetchProviders,
+  judgeIntention,
+  requestedModel,
+  setModel,
+} from './llm';
+import {
+  filterModels,
+  initialModel,
+  listModels,
+  openCodeDefault,
+  type ModelOption,
+  type ModelRef,
+} from './model';
+import {reviseRun} from './revise';
+import {CORNER_LOGO, cornerLogo, startPage, type ModelView} from './start';
 import {glow, lines, span, styled, type Tone} from './theme';
 import {
   appendInline,
+  bodyPath,
   commentsPath,
   getSection,
+  messagePath,
   parseInline,
+  readBodyDraft,
   readComments,
+  readMessage,
   setSection,
   type Store,
 } from './store';
 import type {InlineComment} from './types';
+import {VERSION} from './version';
 
 const PAGES = [
   'Checklist',
@@ -48,6 +75,9 @@ const PAGES = [
   'Comments',
   'Review',
 ] as const;
+
+/** Index of the Enquire page in {@link PAGES}. */
+const ENQUIRE_PAGE = 2;
 
 /** Options for {@link runTui}. */
 export interface TuiOptions {
@@ -92,8 +122,12 @@ export async function runTui(store: Store, opts: TuiOptions): Promise<void> {
     flexShrink: 0,
   });
   topBar.add(logo);
-  const header = new TextRenderable(renderer, {content: '', visible: false});
-  const body = new TextRenderable(renderer, {content: '', flexGrow: 1});
+  const header = new TextRenderable(renderer, {
+    content: '',
+    visible: false,
+    flexShrink: 0,
+  });
+  const pager = new Pager(renderer, PAGES.length, [ENQUIRE_PAGE]);
   const splash = new BoxRenderable(renderer, {
     flexDirection: 'column',
     alignItems: 'center',
@@ -101,12 +135,58 @@ export async function runTui(store: Store, opts: TuiOptions): Promise<void> {
     flexGrow: 1,
     visible: false,
   });
-  for (const content of startPage(state.pr))
-    splash.add(new TextRenderable(renderer, {content}));
-  const status = new TextRenderable(renderer, {content: ''});
-  const input = new InputRenderable(renderer, {width: '100%', placeholder: ''});
-  const footer = new TextRenderable(renderer, {content: ''});
-  for (const r of [topBar, header, body, splash, status, input, footer])
+  // Model: the saved choice, else $MODEL, else OpenCode's default once the
+  // list has loaded.
+  let selectedModel: ModelRef | undefined = initialModel(
+    state.model,
+    requestedModel(),
+    undefined,
+  );
+  if (state.model) setModel(state.model);
+  let models: ModelOption[] = [];
+  let modelsLoading = true;
+  let modelsError: string | undefined;
+  let picker: {query: string; cursor: number} | undefined;
+  /** Picker rows that fit under the logo. */
+  const pickerRows = (): number =>
+    Math.max(3, Math.min(10, renderer.height - 24));
+  /** Index of the selected model in the full list; 0 if absent. */
+  const selectedIndex = (): number =>
+    Math.max(
+      0,
+      models.findIndex(
+        (o) =>
+          o.providerID === selectedModel?.providerID &&
+          o.modelID === selectedModel?.modelID,
+      ),
+    );
+  const modelView = (): ModelView => {
+    const options = filterModels(models, picker?.query ?? '');
+    return {
+      selected: selectedModel,
+      loading: modelsLoading,
+      pickable: !modelsError,
+      error: modelsError,
+      picker: picker && {
+        query: picker.query,
+        options,
+        cursor: Math.min(picker.cursor, Math.max(0, options.length - 1)),
+        rows: pickerRows(),
+      },
+    };
+  };
+  const splashBlocks = startPage(state.pr, modelView()).map(
+    (content) => new TextRenderable(renderer, {content}),
+  );
+  for (const b of splashBlocks) splash.add(b);
+  const status = new TextRenderable(renderer, {content: '', flexShrink: 0});
+  const input = new InputRenderable(renderer, {
+    width: '100%',
+    placeholder: '',
+    flexShrink: 0,
+  });
+  const footer = new TextRenderable(renderer, {content: '', flexShrink: 0});
+  for (const r of [topBar, header, pager.view, splash, status, input, footer])
     root.add(r);
   renderer.root.add(root);
 
@@ -123,6 +203,10 @@ export async function runTui(store: Store, opts: TuiOptions): Promise<void> {
   const ide = new IdeClient(() => void draw());
   let typingOff = false; // Esc: leave the input so arrows navigate
   let payloadText = '';
+  /** The posting prompt, open after `p`; `event` is the highlighted type. */
+  let posting: {event: ReviewEvent} | undefined;
+  let bodyText = ''; // review body as it would be posted, without the prefix
+  let bodyEdited = false; // bodyText comes from review-body.md
   let asking = false; // an Enquire question is in flight
   let glowStep = 0;
   let glowTimer: ReturnType<typeof setInterval> | undefined;
@@ -262,12 +346,22 @@ export async function runTui(store: Store, opts: TuiOptions): Promise<void> {
     const comments = parseInline(md);
     const gates = reviewGates(state, comments);
     topBar.visible = started;
-    body.visible = started;
+    pager.view.visible = started;
     splash.visible = !started;
     header.visible = started;
     if (!started) {
+      startPage(state.pr, modelView()).forEach((content, i) => {
+        splashBlocks[i]!.content = content;
+      });
       status.content = styled(span(''));
-      footer.content = styled(span('Enter start · Ctrl+C quit', 'muted'));
+      footer.content = styled(
+        span(
+          picker
+            ? 'type to filter · ↑/↓ move · Enter select · Esc cancel'
+            : `Enter start ${modelsError ? '' : '· m change model '}· Ctrl+C quit`,
+          'muted',
+        ),
+      );
       input.visible = false;
       input.blur();
       renderer.requestRender();
@@ -350,7 +444,10 @@ export async function runTui(store: Store, opts: TuiOptions): Promise<void> {
               ? 'comment on the selection'
               : 'path:line comment',
           ),
-          span('   (or: general: text for the review body)', 'muted'),
+          span(
+            '   (or: general: text that applies to the whole review)',
+            'muted',
+          ),
         ],
         ideLine(),
         ...candidateLines(),
@@ -385,10 +482,53 @@ export async function runTui(store: Store, opts: TuiOptions): Promise<void> {
             ? span('POST (live)', 'error', {bold: true})
             : span('dry run', 'muted'),
         ],
+        ...(posting
+          ? [
+              [],
+              [
+                span('Post review as: ', 'accent', {bold: true}),
+                ...REVIEW_CHOICES.flatMap((c) => [
+                  c.event === posting!.event
+                    ? span(`[${c.label}]`, 'accent', {bold: true})
+                    : span(` ${c.label} `, 'muted'),
+                  span('  '),
+                ]),
+              ],
+              [
+                span(
+                  opts.post
+                    ? 'Enter posts it to GitHub with the inline comments and body · Esc cancels'
+                    : 'Enter saves the dry-run payload · Esc cancels',
+                  'muted',
+                ),
+              ],
+            ]
+          : []),
         [],
+        ...(bodyText
+          ? [
+              [
+                span('Review body', 'accent', {bold: true}),
+                span(
+                  bodyEdited
+                    ? ' (edited, from review-body.md):'
+                    : ' (m: add a message · b: edit before posting):',
+                  'muted',
+                ),
+              ],
+              ...bodyText.split('\n').map((l) => [span(l)]),
+              [],
+            ]
+          : []),
         ...(state.feedback
           ? [
-              [span('Feedback on your comments (LLM):', 'llm', {bold: true})],
+              [
+                span(
+                  `Feedback on your comments (LLM, run ${state.reviewRuns ?? 1}):`,
+                  'llm',
+                  {bold: true},
+                ),
+              ],
               ...state.feedback.split('\n').map((l) => [span(l, 'llm')]),
             ]
           : []),
@@ -400,11 +540,17 @@ export async function runTui(store: Store, opts: TuiOptions): Promise<void> {
             ]
           : []),
       ]);
-      hint +=
-        ' · s start review · e edit comments.md · p ' +
-        (opts.post ? 'post' : 'dry-run payload');
+      const sVerb = state.reviewRuns ? 're-run' : 'start';
+      hint = posting
+        ? '←/→ or c/r/a choose review type · Enter ' +
+          (opts.post ? 'post' : 'dry-run') +
+          ' · Esc cancel'
+        : hint +
+          ` · s ${sVerb} review · e edit comments.md · m message · b edit body · p ` +
+          (opts.post ? 'post' : 'dry-run payload');
     }
-    body.content = text;
+    pager.show(state.page);
+    pager.active.text.content = text;
     status.content = busy
       ? styled(span('working…', 'warn'))
       : styled(span(message, messageTone, {bold: messageTone === 'error'}));
@@ -427,6 +573,7 @@ export async function runTui(store: Store, opts: TuiOptions): Promise<void> {
     typingOff = false;
     say('');
     await persist();
+    if (state.page === 4) await refreshBody();
     await draw();
   }
 
@@ -536,6 +683,7 @@ export async function runTui(store: Store, opts: TuiOptions): Promise<void> {
     }, 200);
     turns.push(turn);
     await draw();
+    if (state.page === ENQUIRE_PAGE) pager.scrollToEnd();
     const r = await enquire(
       {question, subject, diff: store.diff},
       undefined,
@@ -568,38 +716,88 @@ export async function runTui(store: Store, opts: TuiOptions): Promise<void> {
   }
   input.on(InputRenderableEvents.ENTER, (v: string): void => void submit(v));
 
+  /** Runs a review of comments.md as it is now; repeatable after edits. */
   async function startReview(): Promise<void> {
-    const md = await readComments(store.dir);
-    const gates = reviewGates(state, parseInline(md));
-    if (!gates.ok) {
-      say(`Blocked: ${gates.missing.join(', ')}`, 'error');
-      return;
-    }
     busy = true;
     await draw();
     try {
-      state.feedback = await reviewComments(md);
-      say('');
+      const result = await reviseRun(store);
+      if (result.ok) say(`Review run ${result.run} done.`);
+      else say(`Blocked: ${result.missing.join(', ')}`, 'error');
     } catch (e) {
       say(`Review failed: ${(e as Error).message}`, 'error');
     }
     busy = false;
   }
 
-  async function editComments(): Promise<void> {
+  /**
+   * The review body to post: the reviewer's edited draft if there is one,
+   * else message, quoted intention, two-line summary and general comments.
+   */
+  async function currentBody(
+    md: string,
+    comments: InlineComment[],
+  ): Promise<{text: string; edited: boolean}> {
+    const draft = await readBodyDraft(store.dir);
+    if (draft) return {text: draft, edited: true};
+    return {
+      text: composeReviewBody({
+        message: await readMessage(store.dir),
+        intention: getSection(md, 'Intention') || state.intention.text,
+        general: getSection(md, 'General'),
+        comments,
+      }),
+      edited: false,
+    };
+  }
+
+  /** Updates the body preview shown on the Review page. */
+  async function refreshBody(): Promise<void> {
+    const md = await readComments(store.dir);
+    const b = await currentBody(md, parseInline(md));
+    bodyText = b.text;
+    bodyEdited = b.edited;
+  }
+
+  async function openEditor(path: string): Promise<void> {
     await renderer.suspend();
-    spawnSync(process.env.EDITOR || 'vi', [commentsPath(store.dir)], {
-      stdio: 'inherit',
-    });
+    spawnSync(process.env.EDITOR || 'vi', [path], {stdio: 'inherit'});
     await renderer.resume();
   }
 
-  async function publish(): Promise<void> {
+  async function editComments(): Promise<void> {
+    await openEditor(commentsPath(store.dir));
+  }
+
+  /** Opens your message to the author in $EDITOR (review-message.md). */
+  async function editMessage(): Promise<void> {
+    if (!(await Bun.file(messagePath(store.dir)).exists()))
+      await Bun.write(messagePath(store.dir), '');
+    await openEditor(messagePath(store.dir));
+    say('Message saved to review-message.md.', 'muted');
+  }
+
+  /** Opens the review body in $EDITOR, creating review-body.md if needed. */
+  async function editBody(): Promise<void> {
+    if (!(await readBodyDraft(store.dir))) {
+      const md = await readComments(store.dir);
+      const b = await currentBody(md, parseInline(md));
+      await Bun.write(bodyPath(store.dir), `${b.text}\n`);
+    }
+    await openEditor(bodyPath(store.dir));
+    say(
+      'Body saved to review-body.md; delete the file to regenerate it.',
+      'muted',
+    );
+  }
+
+  async function publish(event: ReviewEvent): Promise<void> {
     const md = await readComments(store.dir);
     const comments = parseInline(md);
     const gates = reviewGates(state, comments);
     if (!gates.ok) {
       say(`Blocked: ${gates.missing.join(', ')}`, 'error');
+      posting = undefined;
       return;
     }
     const bad = comments
@@ -607,33 +805,105 @@ export async function runTui(store: Store, opts: TuiOptions): Promise<void> {
       .find(Boolean);
     if (bad) {
       say(`Edited comment invalid: ${bad}`, 'error');
+      posting = undefined;
       return;
     }
     const reviewer = process.env.REVIEWER || (await ghLogin());
     const model = currentModelLabel();
-    const general = getSection(md, 'General') || 'Review comments below.';
+    const general = (await currentBody(md, comments)).text;
     const payload = buildReviewPayload({
       prefix: `[${reviewer} + ${model}]`,
       general,
       comments,
       headSha: state.pr.headSha,
+      footer: reviewFooter(VERSION, model),
+      event,
     });
     payloadText = JSON.stringify(payload, null, 2);
     await Bun.write(`${store.dir}/payload.json`, payloadText);
-    say(
-      opts.post
-        ? `Posted: ${await postReview(state.pr, payload)}`
-        : `Dry run: payload saved to ${store.dir}/payload.json`,
-    );
+    if (opts.post) {
+      try {
+        say(`Posted: ${await postReview(state.pr, payload)}`);
+      } catch (e) {
+        throw new PostError(explainPostError(event, (e as Error).message));
+      }
+    } else say(`Dry run: payload saved to ${store.dir}/payload.json`);
+    posting = undefined;
   }
 
   renderer.keyInput.on('keypress', async (key) => {
     if (!started) {
+      if (picker) {
+        const options = filterModels(models, picker.query);
+        if (key.name === 'escape') picker = undefined;
+        else if (key.name === 'return') {
+          const pick = options[Math.min(picker.cursor, options.length - 1)];
+          if (pick) {
+            selectedModel = {
+              providerID: pick.providerID,
+              modelID: pick.modelID,
+            };
+            state.model = selectedModel;
+            setModel(selectedModel);
+            await persist();
+            picker = undefined;
+          }
+        } else if (key.name === 'up')
+          picker.cursor = Math.max(0, picker.cursor - 1);
+        else if (key.name === 'down')
+          picker.cursor = Math.min(options.length - 1, picker.cursor + 1);
+        else if (key.name === 'backspace') {
+          picker.query = picker.query.slice(0, -1);
+          picker.cursor = 0;
+        } else if (
+          !key.ctrl &&
+          !key.meta &&
+          /^[\x20-\x7e]$/.test(key.sequence)
+        ) {
+          picker.query += key.sequence;
+          picker.cursor = 0;
+        }
+        return void (await draw());
+      }
       if (key.name === 'return') {
         started = true;
         await draw();
+      } else if (key.name === 'm' && !modelsError) {
+        picker = {query: '', cursor: selectedIndex()};
+        await draw();
       }
       return;
+    }
+    if (posting && state.page === 4) {
+      const i = REVIEW_CHOICES.findIndex((c) => c.event === posting!.event);
+      const n = REVIEW_CHOICES.length;
+      const byKey = REVIEW_CHOICES.find((c) => c.key === key.name);
+      if (key.name === 'escape') {
+        posting = undefined;
+        say('Posting cancelled.', 'muted');
+      } else if (key.name === 'left')
+        posting.event = REVIEW_CHOICES[(i + n - 1) % n]!.event;
+      else if (key.name === 'right')
+        posting.event = REVIEW_CHOICES[(i + 1) % n]!.event;
+      else if (byKey) posting.event = byKey.event;
+      else if (key.name === 'return' && !busy) {
+        try {
+          await publish(posting.event);
+        } catch (e) {
+          say(
+            e instanceof PostError
+              ? e.message
+              : `Failed: ${(e as Error).message}`,
+            'error',
+          );
+        }
+        await persist();
+      }
+      return void (await draw());
+    }
+    if (key.name === 'pageup' || key.name === 'pagedown') {
+      pager.scrollBy(key.name === 'pageup' ? -0.5 : 0.5, 'viewport');
+      return renderer.requestRender();
     }
     const typing = inputPage() && input.visible && !typingOff;
     const inputEmpty = !input.value;
@@ -670,19 +940,38 @@ export async function runTui(store: Store, opts: TuiOptions): Promise<void> {
     if (state.page === 4 && !busy) {
       if (key.name === 's') await startReview();
       else if (key.name === 'e') await editComments();
+      else if (key.name === 'm') await editMessage();
+      else if (key.name === 'b') await editBody();
       else if (key.name === 'p') {
-        try {
-          await publish();
-        } catch (e) {
-          say(`Failed: ${(e as Error).message}`, 'error');
-        }
+        posting = {event: DEFAULT_REVIEW_EVENT};
+        say('');
       }
+      await refreshBody();
       await persist();
       return void (await draw());
     }
   });
 
   await draw();
+
+  // List models in the background so the start page never waits on OpenCode.
+  void (async (): Promise<void> => {
+    try {
+      const listing = await fetchProviders();
+      models = listModels(listing);
+      selectedModel = initialModel(
+        state.model,
+        requestedModel(),
+        openCodeDefault(listing),
+      );
+      setModel(selectedModel);
+    } catch (e) {
+      modelsError = (e as Error).message || 'OpenCode unavailable';
+    }
+    modelsLoading = false;
+    if (picker && !picker.query) picker.cursor = selectedIndex();
+    if (!started) await draw();
+  })();
 
   // Like Claude Code's /ide: connect automatically when exactly one matches.
   candidates = await discoverIdes(repoRoot);
@@ -729,3 +1018,6 @@ function excerptLines(text: string): string[] {
       ]
     : all;
 }
+
+/** A failed post, with a message that is ready to show the reviewer. */
+class PostError extends Error {}

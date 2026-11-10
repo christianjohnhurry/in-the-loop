@@ -6,6 +6,119 @@ uses [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.12.0] - 2026-11-10 (SWE-26)
+
+### Added
+
+- `p` now asks for the review type before posting: Comment (the default),
+  Request changes or Approve, mapped to GitHub's `COMMENT`, `REQUEST_CHANGES`
+  and `APPROVE`. `←`/`→` or `c`/`r`/`a` choose, Enter posts (or saves the
+  dry-run payload), Esc cancels. The chosen type is shown before posting.
+
+### Changed
+
+- If GitHub refuses the post, for example approving or requesting changes on
+  your own PR, the error is shown, nothing is posted, and the prompt stays
+  open so you can pick another type. Comments, message and body are kept.
+
+## [0.11.0] - 2026-11-10 (SWE-25)
+
+### Added
+
+- Posted review bodies end with a footer: `Reviewed with [In The Loop's
+  review-tui](https://github.com/christianjohnhurry/in-the-loop) (vX.Y.Z)
+  using $MODEL`, showing the real version and the model used. It is added when
+  the review is built, so it also ends an edited `review-body.md`.
+
+### Changed
+
+- The intention heading now reads "Reviewer’s understanding of the PR contents
+  and intention (please correct reviewer if wrong)".
+- `src/version.ts` exposes the version from `package.json`.
+
+## [0.10.0] - 2026-11-10 (SWE-23)
+
+### Added
+
+- The posted review now has a body built from four parts, in order: a
+  message from you to the author, your stated intention as a `> ` quote
+  block, a two-line summary of the inline comments, and your general
+  comments (the `general:` text). It goes up with the inline comments as
+  one review.
+- Review page shows the body. `m` opens your message in `$EDITOR` (saved as
+  `review-message.md`; no message means none is posted). `b` opens the whole
+  body (saved as `review-body.md`) to edit it before `p`. An edited body is
+  posted as written; delete the file to build it afresh.
+
+## [0.9.0] - 2026-11-10 (SWE-24)
+
+### Added
+
+- The review can be run again from the Review page: edit `comments.md` with
+  `e`, then press `s` again, as many times as needed. Each run reads
+  `comments.md` as it is now, so it sees your edits.
+- `src/revise.ts` (`reviseRun`) holds one run, so it can be tested without the
+  UI. The run count is saved as `reviewRuns` in `state.json`.
+
+### Changed
+
+- The feedback heading shows the run number, and the footer hint reads
+  `s re-run review` once a run has completed.
+- A run that fails keeps the feedback from the last successful run.
+
+## [0.8.2] - 2026-11-10 (SWE-22)
+
+### Fixed
+
+- The page tabs stay fixed at the top of the window; only the page body
+  scrolls, so a long Enquire transcript no longer pushes them out of sight.
+- Each page has its own scroll region and offset. Switching pages no longer
+  carries the Enquire transcript's scroll height over, so a short page opens
+  at its own top and each page remembers where you left it.
+
+### Added
+
+- PgUp/PgDn scroll the page body. Enquire still follows the newest message.
+
+## [0.8.1] - 2026-11-07 (SWE-21)
+
+### Added
+
+- `docs/repo-layout.md`: the repo tree with a comment on what each file does.
+- `docs/ui.md`: a labelled wireframe of each page, the key bindings,
+  and a Mermaid diagram of how the pages, VS Code, OpenCode and the review
+  files connect. The README links to it from a short ASCII sketch.
+
+## [0.8.0] - 2026-11-06 (SWE-20)
+
+### Added
+
+- `review-tui` with no URL reviews the open PR for the current git branch,
+  found with `gh pr view --json url`. An explicit URL still wins and works
+  from any directory.
+- Clear errors, exit code 2, when not inside a git repo, when HEAD is
+  detached, and when the branch has no open PR (each suggests passing a URL).
+
+### Changed
+
+- Usage is now `review-tui [pr-url] [--post]`.
+
+## [0.7.0] - 2026-11-06 (SWE-19)
+
+### Added
+
+- Model picker on the start page. A `model:` line under `repo:` and `branch:`
+  shows the model the judge runs on; `m` opens a filterable, scrolling list of
+  every model OpenCode reports for the reviewer, and Enter selects one. Enter
+  with the list closed still starts the review.
+- The default is `$MODEL` if set, else OpenCode's default model (its
+  configured `model`, else the first provider's default).
+- The chosen model is saved in `state.json` (`model`) and wins on resume; older
+  state files without one fall back to the default. It is sent on every judge
+  call and shown in the `[$REVIEWER + $MODEL]` label.
+- If OpenCode cannot list models the start page shows an error line and keeps
+  the default/`$MODEL`.
+
 ## [0.6.1] - 2026-11-04 (SWE-18)
 
 ### Changed
