@@ -68,12 +68,13 @@ Enter starts the review only when the list is closed. If OpenCode cannot list mo
 
 Switch pages with ←/→. Arrow keys switch pages while the input is empty. Ctrl+C quits.
 
-| Key   | Action                                                   |
-| ----- | -------------------------------------------------------- |
-| ←/→   | Previous / next page                                     |
-| Esc   | Leave the text input (so ←/→ always work)                |
-| Enter | Type again (when the input is off); otherwise submit     |
-| `i`   | Type again (when the input is off)                       |
+| Key       | Action                                                   |
+| --------- | -------------------------------------------------------- |
+| ←/→       | Previous / next page                                     |
+| PgUp/PgDn | Scroll the page body (the tab bar stays fixed)           |
+| Esc       | Leave the text input (so ←/→ always work)                |
+| Enter     | Type again (when the input is off); otherwise submit     |
+| `i`       | Type again (when the input is off)                       |
 
 ### Checklist
 

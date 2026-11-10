@@ -26,6 +26,7 @@ import {
   toRepoPath,
   type FoundIde,
 } from './ide';
+import {Pager} from './pager';
 import {enquire, subjectLabel, type Subject} from './enquire';
 import {
   currentModelLabel,
@@ -63,6 +64,9 @@ const PAGES = [
   'Comments',
   'Review',
 ] as const;
+
+/** Index of the Enquire page in {@link PAGES}. */
+const ENQUIRE_PAGE = 2;
 
 /** Options for {@link runTui}. */
 export interface TuiOptions {
@@ -107,8 +111,12 @@ export async function runTui(store: Store, opts: TuiOptions): Promise<void> {
     flexShrink: 0,
   });
   topBar.add(logo);
-  const header = new TextRenderable(renderer, {content: '', visible: false});
-  const body = new TextRenderable(renderer, {content: '', flexGrow: 1});
+  const header = new TextRenderable(renderer, {
+    content: '',
+    visible: false,
+    flexShrink: 0,
+  });
+  const pager = new Pager(renderer, PAGES.length, [ENQUIRE_PAGE]);
   const splash = new BoxRenderable(renderer, {
     flexDirection: 'column',
     alignItems: 'center',
@@ -160,10 +168,14 @@ export async function runTui(store: Store, opts: TuiOptions): Promise<void> {
     (content) => new TextRenderable(renderer, {content}),
   );
   for (const b of splashBlocks) splash.add(b);
-  const status = new TextRenderable(renderer, {content: ''});
-  const input = new InputRenderable(renderer, {width: '100%', placeholder: ''});
-  const footer = new TextRenderable(renderer, {content: ''});
-  for (const r of [topBar, header, body, splash, status, input, footer])
+  const status = new TextRenderable(renderer, {content: '', flexShrink: 0});
+  const input = new InputRenderable(renderer, {
+    width: '100%',
+    placeholder: '',
+    flexShrink: 0,
+  });
+  const footer = new TextRenderable(renderer, {content: '', flexShrink: 0});
+  for (const r of [topBar, header, pager.view, splash, status, input, footer])
     root.add(r);
   renderer.root.add(root);
 
@@ -319,7 +331,7 @@ export async function runTui(store: Store, opts: TuiOptions): Promise<void> {
     const comments = parseInline(md);
     const gates = reviewGates(state, comments);
     topBar.visible = started;
-    body.visible = started;
+    pager.view.visible = started;
     splash.visible = !started;
     header.visible = started;
     if (!started) {
@@ -471,7 +483,8 @@ export async function runTui(store: Store, opts: TuiOptions): Promise<void> {
         ' · s start review · e edit comments.md · p ' +
         (opts.post ? 'post' : 'dry-run payload');
     }
-    body.content = text;
+    pager.show(state.page);
+    pager.active.text.content = text;
     status.content = busy
       ? styled(span('working…', 'warn'))
       : styled(span(message, messageTone, {bold: messageTone === 'error'}));
@@ -603,6 +616,7 @@ export async function runTui(store: Store, opts: TuiOptions): Promise<void> {
     }, 200);
     turns.push(turn);
     await draw();
+    if (state.page === ENQUIRE_PAGE) pager.scrollToEnd();
     const r = await enquire(
       {question, subject, diff: store.diff},
       undefined,
@@ -736,6 +750,10 @@ export async function runTui(store: Store, opts: TuiOptions): Promise<void> {
         await draw();
       }
       return;
+    }
+    if (key.name === 'pageup' || key.name === 'pagedown') {
+      pager.scrollBy(key.name === 'pageup' ? -0.5 : 0.5, 'viewport');
+      return renderer.requestRender();
     }
     const typing = inputPage() && input.visible && !typingOff;
     const inputEmpty = !input.value;
