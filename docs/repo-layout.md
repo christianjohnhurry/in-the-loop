@@ -76,6 +76,8 @@ in-the-loop/
     ├── comments.md                The reviewer's intention and comments
     ├── state.json                 Checklist, intention, page, feedback, model
     ├── diff.patch                 The PR diff
+    ├── review-message.md          Your message to the author, after `m`
+    ├── review-body.md             The edited review body, after `b`
     ├── payload.json               The review payload, after `p`
     └── errors.log                 LLM failures, if any
 ```

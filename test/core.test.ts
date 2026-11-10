@@ -1,15 +1,30 @@
 import {expect, test} from 'bun:test';
+import {mkdtemp, rm} from 'node:fs/promises';
+import {tmpdir} from 'node:os';
+import {join} from 'node:path';
 import {checklistDone, CHECKLIST} from '../src/checklist';
 import {reviewGates} from '../src/gates';
 import {
   buildReviewPayload,
+  composeReviewBody,
   parseDiff,
   parsePrUrl,
+  quoteBlock,
+  summarizeComments,
   validateTarget,
 } from '../src/github';
 import {FALLBACK_HINT, HINT_CAP, parseVerdict} from '../src/guard';
 import {judgeIntention, reviewComments} from '../src/llm';
-import {formatInline, getSection, parseInline, setSection} from '../src/store';
+import {
+  bodyPath,
+  formatInline,
+  getSection,
+  messagePath,
+  parseInline,
+  readBodyDraft,
+  readMessage,
+  setSection,
+} from '../src/store';
 import type {State} from '../src/types';
 
 const diff = await Bun.file(`${import.meta.dir}/fixtures/sample.diff`).text();
@@ -131,4 +146,90 @@ test('gates', () => {
   state.intention.status = 'passed';
   expect(reviewGates(state, []).missing).toEqual(['no comments yet']);
   expect(reviewGates(state, [{path: 'a', line: 1, body: 'b'}]).ok).toBe(true);
+});
+
+test('quoteBlock quotes every line, blank lines included', () => {
+  expect(quoteBlock('one\n\ntwo\n')).toBe('> one\n>\n> two');
+});
+
+test('summarizeComments is two lines: counts, then files', () => {
+  const s = summarizeComments([
+    {path: 'a.ts', line: 1, body: 'x'},
+    {path: 'a.ts', line: 2, body: 'y'},
+    {path: 'b.ts', line: 3, body: 'z'},
+  ]);
+  expect(s.split('\n')).toEqual([
+    '- 3 inline comments on 2 files.',
+    '- Files: `a.ts` (2), `b.ts` (1).',
+  ]);
+  expect(
+    summarizeComments([{path: 'a.ts', line: 1, body: 'x'}]).split('\n')[0],
+  ).toBe('- 1 inline comment on 1 file.');
+  expect(summarizeComments([]).split('\n')).toHaveLength(2);
+});
+
+test('review body: message, quote, summary, then general, in order', () => {
+  const body = composeReviewBody({
+    message: 'Thanks for this.\n',
+    intention: 'Adds a greeter.\nIt is pure.',
+    comments: [{path: 'a.ts', line: 1, body: 'x'}],
+    general: 'Please add docs.',
+  });
+  const message = body.indexOf('Thanks for this.');
+  const quote = body.indexOf('> Adds a greeter.\n> It is pure.');
+  const summary = body.indexOf('- 1 inline comment on 1 file.');
+  const general = body.indexOf('Please add docs.');
+  expect(message).toBe(0);
+  expect(quote).toBeGreaterThan(message);
+  expect(summary).toBeGreaterThan(quote);
+  expect(general).toBeGreaterThan(summary);
+});
+
+test('review body leaves out empty parts and adds no filler', () => {
+  const body = composeReviewBody({
+    message: '',
+    intention: ' ',
+    comments: [],
+    general: '',
+  });
+  expect(body).not.toContain('>');
+  expect(body).not.toContain('General comments');
+  expect(body.startsWith('**Summary of inline comments**')).toBe(true);
+});
+
+test('composed body is the single review body, prefixed once', () => {
+  const comments = [{path: 'a.ts', line: 1, body: 'x'}];
+  const body = composeReviewBody({
+    message: 'Hi',
+    intention: 'why',
+    comments,
+    general: '',
+  });
+  const p = buildReviewPayload({
+    prefix: '[me + m]',
+    general: body,
+    headSha: 'abc',
+    comments,
+  });
+  expect(p.body.startsWith('[me + m] Hi')).toBe(true);
+  expect(p.body).toContain('\n> why\n');
+  expect(p.comments).toHaveLength(1);
+});
+
+test('readMessage: empty when absent, else trimmed text', async () => {
+  const dir = await mkdtemp(join(tmpdir(), 'msg-'));
+  expect(await readMessage(dir)).toBe('');
+  await Bun.write(messagePath(dir), '  Hello author\n');
+  expect(await readMessage(dir)).toBe('Hello author');
+  await rm(dir, {recursive: true});
+});
+
+test('readBodyDraft: null when absent or blank, else trimmed text', async () => {
+  const dir = await mkdtemp(join(tmpdir(), 'body-'));
+  expect(await readBodyDraft(dir)).toBeNull();
+  await Bun.write(bodyPath(dir), '  \n');
+  expect(await readBodyDraft(dir)).toBeNull();
+  await Bun.write(bodyPath(dir), 'edited body\n');
+  expect(await readBodyDraft(dir)).toBe('edited body');
+  await rm(dir, {recursive: true});
 });

@@ -6,6 +6,20 @@ uses [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.10.0] - 2026-11-10 (SWE-23)
+
+### Added
+
+- The posted review now has a body built from four parts, in order: a
+  message from you to the author, your stated intention as a `> ` quote
+  block, a two-line summary of the inline comments, and your general
+  comments (the `general:` text). It goes up with the inline comments as
+  one review.
+- Review page shows the body. `m` opens your message in `$EDITOR` (saved as
+  `review-message.md`; no message means none is posted). `b` opens the whole
+  body (saved as `review-body.md`) to edit it before `p`. An edited body is
+  posted as written; delete the file to build it afresh.
+
 ## [0.9.0] - 2026-11-10 (SWE-24)
 
 ### Added
