@@ -262,6 +262,45 @@ export function reviewFooter(version: string, model: string): string {
   );
 }
 
+/** The review types GitHub allows, as the `event` of a review. */
+export type ReviewEvent = 'COMMENT' | 'REQUEST_CHANGES' | 'APPROVE';
+
+/** A review type as offered when posting. */
+export interface ReviewChoice {
+  event: ReviewEvent;
+  /** Shown to the reviewer. */
+  label: string;
+  /** Key that picks it in the posting prompt. */
+  key: string;
+}
+
+/** The review types offered when posting; the first is the default. */
+export const REVIEW_CHOICES: readonly ReviewChoice[] = [
+  {event: 'COMMENT', label: 'Comment', key: 'c'},
+  {event: 'REQUEST_CHANGES', label: 'Request changes', key: 'r'},
+  {event: 'APPROVE', label: 'Approve', key: 'a'},
+];
+
+/** The review type used unless the reviewer picks another. */
+export const DEFAULT_REVIEW_EVENT: ReviewEvent = 'COMMENT';
+
+/**
+ * Turns a failed post into a message that says what to do next. GitHub
+ * refuses to approve or request changes on your own PR.
+ *
+ * @param event The review type that was refused.
+ * @param message The error text from `gh`.
+ * @return A one-line message for the reviewer.
+ */
+export function explainPostError(event: ReviewEvent, message: string): string {
+  const label = REVIEW_CHOICES.find((c) => c.event === event)?.label ?? event;
+  const own = /own pull request/i.test(message);
+  const reason = own
+    ? `GitHub does not let you ${label.toLowerCase()} on your own PR`
+    : message;
+  return `Post failed (${label}): ${reason}. Nothing was posted and your review is kept: pick again or Esc.`;
+}
+
 /** What goes into a review. */
 export interface ReviewInput {
   /** Prepended to every comment, e.g. "[me + model]". */
@@ -274,12 +313,14 @@ export interface ReviewInput {
   headSha: string;
   /** Ends the review body, after a blank line; omitted when empty. */
   footer?: string;
+  /** The review type; defaults to {@link DEFAULT_REVIEW_EVENT}. */
+  event?: ReviewEvent;
 }
 
-/** The body of `POST /pulls/{n}/reviews` for a single COMMENT review. */
+/** The body of `POST /pulls/{n}/reviews` for a single review. */
 export interface ReviewPayload {
   commit_id: string;
-  event: 'COMMENT';
+  event: ReviewEvent;
   body: string;
   comments: {
     path: string;
@@ -304,7 +345,7 @@ export function buildReviewPayload(input: ReviewInput): ReviewPayload {
   const tag = (s: string): string => `${input.prefix} ${s}`;
   return {
     commit_id: input.headSha,
-    event: 'COMMENT' as const,
+    event: input.event ?? DEFAULT_REVIEW_EVENT,
     body: tag(input.general) + (input.footer ? `\n\n${input.footer}` : ''),
     comments: input.comments.map((c) => ({
       path: c.path,
