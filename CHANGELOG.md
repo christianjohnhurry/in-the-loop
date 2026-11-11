@@ -6,6 +6,21 @@ uses [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.15.1] - 2026-11-11 (SWE-32)
+
+### Added
+
+- `docs/review-tui-quick-guide.md`: a short guide for new users covering
+  launch (dry run and `--post`), the start page, each page in order, general
+  versus inline comments, using review-tui with and without VS Code,
+  choosing Comment, Request changes or Approve, and what to do when a step is
+  blocked. The README links to it near the top.
+
+### Fixed
+
+- `docs/ui.md` said the Review page unlocks once the checklist is ticked. The
+  page is always reachable; the gates apply to `s` and `p`.
+
 ## [0.15.0] - 2026-11-11 (SWE-29)
 
 ### Changed
