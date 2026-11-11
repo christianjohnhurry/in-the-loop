@@ -23,6 +23,37 @@ Drawn from the README and the agent prompts (`.opencode/agents/review-judge.md`,
 
 <!-- Add notes as they come up in discussion. -->
 
+### Scope: a code *writing* tool, not just a PR-description tool
+
+It covers the author's whole path, from idea to reviewable change:
+
+1. **Propose** a feature.
+2. **Design** it.
+3. **Break the design into tickets.**
+4. **Turn tickets into sensible CLs/PRs**: well-sized, well-described changes.
+
+So the "PR writing TUI" name undersells it; it's the author-side counterpart to review-tui. (The ticket/branch names stay as they are.)
+
+### Who writes the code: a mix
+
+- **The engineer owns the abstract thinking**: what the feature is for, the design, how it splits into tickets and PRs.
+- **LLMs write the implementation, at speed**, inside the boundaries the engineer set.
+- So the tool's job is to keep that line sharp: make the engineer do (and show they've done) the abstract thinking before the agent writes code, and make sure what comes back matches it and is understood, so the engineer can still own it in review.
+
+### Where the line sits
+
+Three possible depths for the engineer's "abstract thinking":
+
+1. **What and why**: problem, goal, acceptance criteria.
+2. **Shape**: which modules change, how responsibilities split, main data flows.
+3. **Contracts**: signatures, types, data shapes, maybe tests.
+
+**Decision: level 2 by default, level 3 for risky parts** (public APIs, data models, anything hard to reverse). Level 1 alone hands the design to the agent; level 3 everywhere costs speed where details don't matter.
+
+**Who decides what's risky: a checklist.** The tool asks per change, like review-tui's checklist: does it touch a public API? A data model or schema? A migration? Anything hard to roll back? Security or auth? Any "yes" means level 3 (contracts) for that part. Considered and rejected: engineer flags it unprompted (easy to skip); AI suggests risky spots (bends "nudge, don't tell", the AI volunteering issues).
+
+Follow-up: how is level 2/3 captured so the agent is held to it?
+
 ## Questions to answer
 
 From the ticket, to fill in as we go:
