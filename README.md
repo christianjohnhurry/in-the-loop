@@ -33,17 +33,49 @@ Every page, its keys, and how data flows between the panes, VS Code and the LLM:
 ## Requirements
 
 - [Bun](https://bun.sh).
-- `gh`, authenticated.
-- `opencode` on `PATH`, unless you set `OPENCODE_URL` (see [Configuration](#configuration)).
-- Optional: VS Code with the extension in `vscode-extension/`.
+- `gh`, authenticated (`gh auth login`).
+- `opencode` on `PATH` and logged in to a model provider, unless you set `OPENCODE_URL` (see [Configuration](#configuration)). review-tui checks for `gh` and `opencode` at startup and exits with an install hint if either is missing.
+- Optional: VS Code, for the extension that tells review-tui which lines you are looking at.
 
 ## Install and run
 
+Install the CLI from a release tag (see [Releases](https://github.com/christianjohnhurry/in-the-loop/releases) for the latest; `v0.19.0` is used here):
+
+```sh
+bun install -g github:christianjohnhurry/in-the-loop#v0.19.0
+```
+
+This puts `review-tui` on your `PATH` (Bun's global bin directory, `~/.bun/bin`, must be on it). Run it from inside the repo you are reviewing, so Enquire can read that repo:
+
+```sh
+review-tui                                            # review the open PR for the current branch
+review-tui https://github.com/<owner>/<repo>/pull/<n> # review a specific PR
+review-tui --version
+```
+
+To upgrade, run the install command again with the newer tag.
+
+### VS Code extension
+
+Download `review-tui-selection.vsix` from the latest release and install it:
+
+```sh
+curl -L -o review-tui-selection.vsix https://github.com/christianjohnhurry/in-the-loop/releases/latest/download/review-tui-selection.vsix
+code --install-extension review-tui-selection.vsix
+```
+
+The file name never includes a version, so the `latest/download` link always works. In review-tui, type `/ide` on the Enquire or Comments page to connect.
+
+### From a clone (development)
+
 ```sh
 bun install
-bun src/cli.ts                                            # review the open PR for the current branch
-bun src/cli.ts https://github.com/<owner>/<repo>/pull/<n> # review a specific PR
+bun src/cli.ts [pr-url]       # same as review-tui
 ```
+
+### Releases
+
+Pushing a tag `v<version>` (matching `version` in `package.json`) runs `.github/workflows/release.yml`, which builds the extension and publishes a GitHub release with `review-tui-selection.vsix` attached and the CHANGELOG section as the notes.
 
 Nothing is posted until you press `p` on the Review page and confirm (see [Review](#review)). There is no dry-run mode and no `--post` flag; passing `--post` is an error.
 

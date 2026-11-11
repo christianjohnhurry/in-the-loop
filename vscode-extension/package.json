@@ -18,7 +18,7 @@
   "contributes": {},
   "scripts": {
     "build": "bun build src/extension.ts --outfile dist/extension.js --target node --format cjs --external vscode",
-    "package": "bun run build && npx --yes @vscode/vsce package --no-dependencies"
+    "package": "bun run build && cp ../LICENSE LICENSE && bun x @vscode/vsce@3.6.0 package --no-dependencies -o review-tui-selection.vsix"
   },
   "dependencies": {
     "ws": "^8.18.0"
