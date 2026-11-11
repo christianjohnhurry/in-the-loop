@@ -271,13 +271,11 @@ export const REPO_URL = 'https://github.com/christianjohnhurry/in-the-loop';
  * The footer that ends every posted review body.
  *
  * @param version The app's version, e.g. "0.10.0".
- * @param model The model used for the review, e.g. "anthropic/claude-x".
  * @return One Markdown line linking to the repo.
  */
-export function reviewFooter(version: string, model: string): string {
+export function reviewFooter(version: string): string {
   return (
-    `Reviewed with [In The Loop's review-tui](${REPO_URL}) ` +
-    `(v${version}) using ${model}`
+    `Reviewed with [In The Loop's review-tui](${REPO_URL}) ` + `(v${version})`
   );
 }
 

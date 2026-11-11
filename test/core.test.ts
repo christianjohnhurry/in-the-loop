@@ -249,16 +249,16 @@ test('readBodyDraft: null when absent or blank, else trimmed text', async () => 
   await rm(dir, {recursive: true});
 });
 
-test('review footer links to the repo and names version and model', () => {
-  expect(reviewFooter('1.2.3', 'anthropic/x')).toBe(
+test('review footer links to the repo and names the version only', () => {
+  expect(reviewFooter('1.2.3')).toBe(
     "Reviewed with [In The Loop's review-tui]" +
       '(https://github.com/christianjohnhurry/in-the-loop) ' +
-      '(v1.2.3) using anthropic/x',
+      '(v1.2.3)',
   );
 });
 
 test('payload body ends with the footer, after the prefixed body', () => {
-  const footer = reviewFooter(VERSION, 'p/m');
+  const footer = reviewFooter(VERSION);
   const p = buildReviewPayload({
     prefix: '[me + p/m]',
     general: 'Body',
@@ -307,7 +307,7 @@ test('every heading and the footer rule start their own line', () => {
     general,
     headSha: 'abc',
     comments,
-    footer: reviewFooter(VERSION, 'p/m'),
+    footer: reviewFooter(VERSION),
   });
   const lines = p.body.split('\n');
   const headings = lines.filter((l) => l.startsWith('### '));
@@ -319,7 +319,7 @@ test('every heading and the footer rule start their own line', () => {
   const rule = lines.indexOf('---');
   expect(lines[rule - 1]).toBe('');
   expect(lines[rule + 1]).toBe('');
-  expect(lines.slice(rule + 2)).toEqual([reviewFooter(VERSION, 'p/m')]);
+  expect(lines.slice(rule + 2)).toEqual([reviewFooter(VERSION)]);
 });
 
 test('an edited draft still gets prefix, trimmed body and footer', () => {

@@ -815,7 +815,7 @@ export async function runTui(store: Store, opts: TuiOptions): Promise<void> {
       general,
       comments,
       headSha: state.pr.headSha,
-      footer: reviewFooter(VERSION, model),
+      footer: reviewFooter(VERSION),
       event,
     });
     payloadText = JSON.stringify(payload, null, 2);

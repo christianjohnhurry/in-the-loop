@@ -15,7 +15,10 @@ uses [Semantic Versioning](https://semver.org/).
   (please correct reviewer if wrong)" (still a quote block), "Summary of inline
   comments" and "General comments". Empty sections, and their headings, are
   left out as before.
-- The footer is separated from the sections by a `---` rule.
+- The footer is separated from the sections by a `---` rule, and no longer
+  repeats the model (`using $MODEL`), which is already in the
+  `[reviewer + model]` prefix: it now reads `Reviewed with [In The Loop's
+  review-tui](...) (vX.Y.Z)`.
 - The `[reviewer + model]` prefix is now on its own line at the top of the
   review body, so the first heading starts a line and renders as a heading.
   Inline comments keep the prefix on the same line.
