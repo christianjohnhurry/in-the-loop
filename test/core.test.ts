@@ -11,6 +11,8 @@ import {
   parsePrUrl,
   DEFAULT_REVIEW_EVENT,
   explainPostError,
+  isSelfReviewError,
+  SELF_REVIEW_MESSAGE,
   quoteBlock,
   REVIEW_CHOICES,
   reviewFooter,
@@ -313,9 +315,44 @@ test('explainPostError names the type and says the review is kept', () => {
     'gh api failed: Unprocessable Entity: Can not approve your own pull request (HTTP 422)',
   );
   expect(own).toContain('Approve');
-  expect(own).toContain('does not let you approve on your own PR');
+  expect(own).toContain(SELF_REVIEW_MESSAGE);
+  expect(own).not.toContain('HTTP 422');
   expect(own).toContain('your review is kept');
   const other = explainPostError('COMMENT', 'HTTP 500');
   expect(other).toContain('HTTP 500');
   expect(other).not.toContain('own PR');
+});
+
+test('isSelfReviewError matches GitHub wordings for approve and request changes', () => {
+  const messages = [
+    'gh api failed: Unprocessable Entity: Can not approve your own pull request (HTTP 422)',
+    'Unprocessable Entity: Can not request changes on your own pull request',
+    'Review Can not approve your own pull request',
+    'Cannot approve your own pull request',
+    "You can't request changes on your own pull request",
+    'CAN NOT APPROVE YOUR OWN PULL REQUEST',
+  ];
+  for (const m of messages) expect(isSelfReviewError(m)).toBe(true);
+});
+
+test('isSelfReviewError ignores unrelated errors', () => {
+  const messages = [
+    'HTTP 500',
+    'Unprocessable Entity: Pull request review thread line must be part of the diff',
+    'Can not approve: pull request is not mergeable',
+    'Could not resolve host: api.github.com',
+    'Not Found (HTTP 404): your own pull request list',
+    '',
+  ];
+  for (const m of messages) expect(isSelfReviewError(m)).toBe(false);
+});
+
+test('self-review refusal message is plain for both refused types', () => {
+  const raw = 'Can not request changes on your own pull request (HTTP 422)';
+  const msg = explainPostError('REQUEST_CHANGES', raw);
+  expect(msg).toContain(
+    'Cannot approve or request changes on a PR you opened yourself.',
+  );
+  expect(msg).toContain('Post as a Comment instead.');
+  expect(msg).not.toContain('HTTP 422');
 });

@@ -284,6 +284,26 @@ export const REVIEW_CHOICES: readonly ReviewChoice[] = [
 /** The review type used unless the reviewer picks another. */
 export const DEFAULT_REVIEW_EVENT: ReviewEvent = 'COMMENT';
 
+/** The plain message shown when GitHub refuses a review on your own PR. */
+export const SELF_REVIEW_MESSAGE =
+  'Cannot approve or request changes on a PR you opened yourself. Post as a Comment instead.';
+
+/**
+ * Tells whether an error from GitHub is the refusal to approve or request
+ * changes on a pull request you opened yourself. GitHub words it like "Can not
+ * approve your own pull request" or "Can not request changes on your own pull
+ * request"; the "cannot" and "can't" spellings are accepted too.
+ *
+ * @param message The error text from `gh`.
+ * @return True for the self-review refusal, false for any other error.
+ */
+export function isSelfReviewError(message: string): boolean {
+  const refusal = /\b(?:can\s?not|cannot|can't|unable to)\b/i;
+  const action = /\b(?:approve|request changes)\b/i;
+  const own = /\bown (?:pull request|PR)\b/i;
+  return [refusal, action, own].every((re) => re.test(message));
+}
+
 /**
  * Turns a failed post into a message that says what to do next. GitHub
  * refuses to approve or request changes on your own PR.
@@ -294,11 +314,9 @@ export const DEFAULT_REVIEW_EVENT: ReviewEvent = 'COMMENT';
  */
 export function explainPostError(event: ReviewEvent, message: string): string {
   const label = REVIEW_CHOICES.find((c) => c.event === event)?.label ?? event;
-  const own = /own pull request/i.test(message);
-  const reason = own
-    ? `GitHub does not let you ${label.toLowerCase()} on your own PR`
-    : message;
-  return `Post failed (${label}): ${reason}. Nothing was posted and your review is kept: pick again or Esc.`;
+  const reason = isSelfReviewError(message) ? SELF_REVIEW_MESSAGE : message;
+  const stop = /[.!?]$/.test(reason) ? '' : '.';
+  return `Post failed (${label}): ${reason}${stop} Nothing was posted and your review is kept: pick again or Esc.`;
 }
 
 /** What goes into a review. */
