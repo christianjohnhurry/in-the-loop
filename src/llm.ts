@@ -1,5 +1,6 @@
 import {resolve} from 'node:path';
 import {createOpencode, createOpencodeClient} from '@opencode-ai/sdk/v2';
+import {loadAgents} from './agents';
 import {parseVerdict} from './guard';
 import {modelLabel, type ModelRef, type ProviderListing} from './model';
 import type {Verdict} from './types';
@@ -28,11 +29,17 @@ let cached: Connection | undefined;
 async function getClient(): Promise<Connection> {
   if (cached) return cached;
   const url = process.env.OPENCODE_URL;
+  // The agents are passed inline: OpenCode only finds `.opencode/agents` in
+  // the tree a session runs in, and Enquire runs in the repo under review.
+  // (With OPENCODE_URL the server needs the agents itself.)
+  const agentConfig = {agent: await loadAgents()};
   const made: Connection = url
     ? {client: createOpencodeClient({baseUrl: url}) as Client}
-    : await createOpencode({config: {}, port: 0, timeout: 30_000}).then(
-        (r) => ({client: r.client, close: r.server.close}),
-      );
+    : await createOpencode({
+        config: agentConfig as never,
+        port: 0,
+        timeout: 30_000,
+      }).then((r) => ({client: r.client, close: r.server.close}));
   return (cached = made);
 }
 
@@ -70,22 +77,24 @@ export function closeLlm(): void {
  * @param prompt The full prompt text.
  * @param schema Optional JSON schema to request structured output.
  * @param agent Name of the agent file in `.opencode/agents/`.
+ * @param directory The tree the session (and its read tools) runs in.
  * @return Structured output if the model produced it, else its text.
  */
 export async function ask(
   prompt: string,
   schema?: Record<string, unknown>,
   agent: string = JUDGE_AGENT,
+  directory: string = REPO_ROOT,
 ): Promise<unknown> {
   const {client} = await getClient();
   const session = await client.session.create(
-    {title: 'review-tui', directory: REPO_ROOT},
+    {title: 'review-tui', directory},
     {throwOnError: true},
   );
   const res = await client.session.prompt(
     {
       sessionID: session.data.id,
-      directory: REPO_ROOT,
+      directory,
       agent,
       ...(requested ? {model: requested} : {}),
       parts: [{type: 'text', text: prompt}],

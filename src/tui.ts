@@ -9,6 +9,7 @@ import {
   TextRenderable,
   createCliRenderer,
 } from '@opentui/core';
+import {checkReviewCheckout, gitRoot} from './checkout';
 import {CHECKLIST} from './checklist';
 import {reviewGates} from './gates';
 import {
@@ -101,6 +102,9 @@ export async function runTui(store: Store): Promise<void> {
   const {state} = store;
   const files = parseDiff(store.diff);
   const repoRoot = gitRoot();
+  // Whether Enquire may search this checkout; re-checked on every question,
+  // so `gh pr checkout` in another terminal takes effect without a restart.
+  let repoAccess = checkReviewCheckout(repoRoot, state.pr);
   let candidates: FoundIde[] = []; // from the last /ide scan
   const renderer = await createCliRenderer({exitOnCtrlC: true});
 
@@ -322,6 +326,15 @@ export async function runTui(store: Store): Promise<void> {
       ],
       subjectLine,
       ...candidateLines(),
+      repoAccess.search
+        ? [span('Repo search: on (checkout is at the PR head)', 'muted')]
+        : [
+            span('Repo search unavailable: ', 'warn', {bold: true}),
+            span(
+              `${repoAccess.reason}. Answers use only the selection and diff.`,
+              'muted',
+            ),
+          ],
       ...turns
         .slice(-MAX_TURNS_SHOWN)
         .flatMap((t) => [
@@ -687,8 +700,9 @@ export async function runTui(store: Store): Promise<void> {
     turns.push(turn);
     await draw();
     if (state.page === ENQUIRE_PAGE) pager.scrollToEnd();
+    repoAccess = checkReviewCheckout(repoRoot, state.pr);
     const r = await enquire(
-      {question, subject, diff: store.diff},
+      {question, subject, diff: store.diff, repo: repoAccess},
       undefined,
       (e) =>
         void appendFile(
@@ -987,14 +1001,6 @@ export async function runTui(store: Store): Promise<void> {
     }
     await draw();
   }
-}
-
-/** The repo checkout: the git top level of the working directory. */
-function gitRoot(): string {
-  const r = spawnSync('git', ['rev-parse', '--show-toplevel'], {
-    encoding: 'utf8',
-  });
-  return r.status === 0 ? r.stdout.trim() : process.cwd();
 }
 
 /** One Enquire exchange as shown in the transcript. */

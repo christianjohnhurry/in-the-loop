@@ -103,6 +103,8 @@ Select code in VS Code, type a question and press Enter. The model explains the 
 
 - Answers are plain text. They are not saved and never reach `comments.md` or GitHub.
 - It uses the read-only agent in `.opencode/agents/review-enquire.md`.
+- It reads **the repo you are reviewing**, not review-tui's own checkout: run review-tui from inside a checkout of the PR's repo and the agent can `read`, `grep`, `glob` and `list` it ("where is this called from?"). It still cannot edit files, run commands or use the network, and cannot read `.env` files or anything outside the repo.
+- Repo search is only switched on when the checkout is the PR's repo (a git remote matches `owner/repo`) at the PR's head commit. Otherwise the page says "Repo search unavailable: <reason>" and the model sees only your selection and the diff. Run `gh pr checkout <n>` to fix it; the check is repeated on every question.
 - It is never locked and not a gate.
 - Design: [`docs/design/enquire-page.md`](docs/design/enquire-page.md).
 
@@ -169,7 +171,7 @@ The Comments page shows the active file or selection (`src/llm.ts:L42-48`). With
 
 `$MODEL` is the model the judge runs on. A malformed value exits at startup. An unknown model shows as a failed judge call (retry). The start page pre-selects it, and you can pick another there. When unset, the start page pre-selects OpenCode's default (its configured `model`, else the first provider's default). A model picked on the start page is saved in `state.json` and wins over `$MODEL` when the review is resumed. The prefix then shows the model OpenCode reported using, or `unknown` if no LLM call has completed this session (e.g. a resumed review).
 
-LLM calls go through a local OpenCode server, using the read-only agents in `.opencode/agents/` (`review-judge.md`, `review-enquire.md`).
+LLM calls go through a local OpenCode server, using the read-only agents in `.opencode/agents/` (`review-judge.md`, `review-enquire.md`). review-tui passes them to the OpenCode server it starts, so they work whatever directory a session runs in. With `OPENCODE_URL` the server must already have these agents.
 
 ## State and files
 

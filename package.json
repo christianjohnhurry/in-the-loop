@@ -1,6 +1,6 @@
 {
   "name": "review-tui",
-  "version": "0.17.0",
+  "version": "0.18.0",
   "license": "MIT",
   "module": "src/cli.ts",
   "type": "module",

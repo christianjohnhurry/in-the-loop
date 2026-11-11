@@ -77,6 +77,7 @@ Ask questions about the code to understand it: "why is a new session created her
 
 - With VS Code connected, the question is about the code you have selected. Without it, you can still ask; mention the file in your question.
 - The model explains. It does not give verdicts or write comments for you.
+- It can look through the repo to answer "where is this used?", but only if you launched review-tui inside a checkout of the PR's repo at the PR's head commit (`gh pr checkout <n>`). The page tells you when repo search is unavailable and why; it can still answer from your selection and the diff.
 - Answers are not saved and never reach your review. This page is optional.
 
 ### Comments

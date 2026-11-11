@@ -34,12 +34,15 @@ in-the-loop/
 │   ├── model.ts                   Model choice: parse provider/model, list, filter, pick default
 │   ├── guard.ts                   Guardrail on the judge: only a clean pass/retry and a capped hint
 │   ├── enquire.ts                 Enquire page's model call: caps input and output sizes
+│   ├── agents.ts                  Loads .opencode/agents/*.md so they can be passed to OpenCode inline
+│   ├── checkout.ts                Is the checkout the PR's repo at the PR head? (gates Enquire's repo search)
 │   └── ide.ts                     VS Code client: find the extension, connect, track selection,
 │                                  turn it into a comment target
 │
 ├── test/                          bun test unit tests, one file per area
 │   ├── core.test.ts               Checklist, gates, guard, diff and payload
 │   ├── enquire.test.ts            Enquire input and output limits
+│   ├── repo-access.test.ts        Agent loading and the PR-head check, with a temporary git repo
 │   ├── ide.test.ts                IDE discovery, connection and targets
 │   ├── model.test.ts              Model parsing, filtering and defaults
 │   ├── postprompt.test.ts         Post prompt: choose, confirm, cancel and refusal
