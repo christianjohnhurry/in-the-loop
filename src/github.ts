@@ -220,28 +220,47 @@ export interface BodyParts {
 }
 
 /**
- * Builds the review body, in order: the reviewer's message to the author (if
- * any), their intention as a quote block (so GitHub shows it was written as
- * part of the review process, not to the author), a two-line summary of the
- * inline comments, then the general comments that apply across the review.
+ * Markdown heading marker of each review body section. `###` is modest: `#`
+ * and `##` render large (with a rule under them) in a GitHub review comment.
+ */
+const HEADING_MARKER = '###';
+
+/** Heading of the section holding the reviewer's stated intention. */
+const INTENTION_HEADING =
+  'Reviewer’s understanding of the PR contents and intention ' +
+  '(please correct reviewer if wrong)';
+
+/** A section heading line. */
+function heading(text: string): string {
+  return `${HEADING_MARKER} ${text}`;
+}
+
+/**
+ * Builds the review body: one headed section each for the reviewer's message
+ * to the author (if any), their intention as a quote block (so GitHub shows it
+ * was written as part of the review process, not to the author), a two-line
+ * summary of the inline comments, then the general comments that apply across
+ * the review (if any).
  *
  * @param parts Message, intention, inline comments and general comments.
  * @return The Markdown body, without the reviewer prefix.
  */
 export function composeReviewBody(parts: BodyParts): string {
   const sections: string[] = [];
-  if (parts.message.trim()) sections.push(parts.message.trim());
+  if (parts.message.trim())
+    sections.push(
+      `${heading('Message from the reviewer')}\n\n${parts.message.trim()}`,
+    );
   if (parts.intention.trim())
     sections.push(
-      '_Reviewer’s understanding of the PR contents and intention ' +
-        '(please correct reviewer if wrong):_',
-      quoteBlock(parts.intention),
+      `${heading(INTENTION_HEADING)}\n\n${quoteBlock(parts.intention)}`,
     );
   sections.push(
-    `**Summary of inline comments**\n\n${summarizeComments(parts.comments)}`,
+    `${heading('Summary of inline comments')}\n\n` +
+      summarizeComments(parts.comments),
   );
   if (parts.general.trim())
-    sections.push(`**General comments**\n\n${parts.general.trim()}`);
+    sections.push(`${heading('General comments')}\n\n${parts.general.trim()}`);
   return sections.join('\n\n');
 }
 
@@ -252,13 +271,11 @@ export const REPO_URL = 'https://github.com/christianjohnhurry/in-the-loop';
  * The footer that ends every posted review body.
  *
  * @param version The app's version, e.g. "0.10.0".
- * @param model The model used for the review, e.g. "anthropic/claude-x".
  * @return One Markdown line linking to the repo.
  */
-export function reviewFooter(version: string, model: string): string {
+export function reviewFooter(version: string): string {
   return (
-    `Reviewed with [In The Loop's review-tui](${REPO_URL}) ` +
-    `(v${version}) using ${model}`
+    `Reviewed with [In The Loop's review-tui](${REPO_URL}) ` + `(v${version})`
   );
 }
 
@@ -329,7 +346,7 @@ export interface ReviewInput {
   comments: InlineComment[];
   /** Commit the lines refer to. */
   headSha: string;
-  /** Ends the review body, after a blank line; omitted when empty. */
+  /** Ends the review body, after a `---` rule; omitted when empty. */
   footer?: string;
   /** The review type; defaults to {@link DEFAULT_REVIEW_EVENT}. */
   event?: ReviewEvent;
@@ -352,9 +369,10 @@ export interface ReviewPayload {
 }
 
 /**
- * Builds one GitHub review: the general comment as the body (followed by the
- * footer, if any) and each inline comment on its line, all prefixed so AI
- * lineage is visible.
+ * Builds one GitHub review: the general comment as the body (followed by a
+ * rule and the footer, if any) and each inline comment on its line, all
+ * prefixed so AI lineage is visible. The body's prefix sits on its own line, so
+ * a heading at the start of the body still starts a line and renders.
  *
  * @param input Prefix, general comment, inline comments and head commit.
  * @return The payload to send (or print, in a dry run).
@@ -364,7 +382,13 @@ export function buildReviewPayload(input: ReviewInput): ReviewPayload {
   return {
     commit_id: input.headSha,
     event: input.event ?? DEFAULT_REVIEW_EVENT,
-    body: tag(input.general) + (input.footer ? `\n\n${input.footer}` : ''),
+    body: [
+      input.prefix,
+      input.general.trim(),
+      input.footer ? `---\n\n${input.footer}` : '',
+    ]
+      .filter(Boolean)
+      .join('\n\n'),
     comments: input.comments.map((c) => ({
       path: c.path,
       line: c.line,
