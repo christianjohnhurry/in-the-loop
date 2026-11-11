@@ -1,0 +1,88 @@
+# Continuous integration: checks that every change still lints, type-checks,
+# builds and passes its tests. Nothing here talks to a live model, so
+# `bun run eval:judge` (which needs a model and credentials) is not run.
+name: CI
+
+# Run on every pull request, and on every push to main (i.e. after a merge).
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+# This repo holds two separate Bun packages, each with its own package.json
+# and bun.lock (it is not a Bun workspace):
+#   - the root package, review-tui (the CLI)
+#   - vscode-extension/, the VS Code extension
+# `bun install` only installs the package in the directory it runs in. Each job
+# needs BOTH installs because the root tsconfig also type-checks
+# vscode-extension/src, and the extension's tsconfig extends the root one (it
+# needs @types/bun from the root install).
+#
+# `--frozen-lockfile` makes the install fail instead of silently updating
+# bun.lock, so a package.json change committed without its lockfile is caught.
+jobs:
+  # Job 1: review-tui, the CLI at the repo root.
+  review-tui:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out the repository
+        uses: actions/checkout@v4
+
+      - name: Install Bun
+        uses: oven-sh/setup-bun@v2
+
+      - name: Install root dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Install extension dependencies
+        run: bun install --frozen-lockfile
+        working-directory: vscode-extension
+
+      # eslint with zero warnings allowed, then a prettier formatting check.
+      - name: Lint
+        run: bun run lint
+
+      # tsc --noEmit: type-check only, no output files.
+      - name: Type-check
+        run: bun run typecheck
+
+      # Unit tests for review-tui, run with `bun test`.
+      - name: Test
+        run: bun test
+
+  # Job 2: the VS Code extension in vscode-extension/. Runs in parallel with
+  # job 1.
+  vscode-extension:
+    runs-on: ubuntu-latest
+    # Steps below run inside vscode-extension/ unless they say otherwise.
+    defaults:
+      run:
+        working-directory: vscode-extension
+    steps:
+      - name: Check out the repository
+        uses: actions/checkout@v4
+
+      - name: Install Bun
+        uses: oven-sh/setup-bun@v2
+
+      # Overrides the default directory above: this installs the ROOT package
+      # (for @types/bun, which the extension's tsconfig pulls in).
+      - name: Install root dependencies
+        run: bun install --frozen-lockfile
+        working-directory: .
+
+      - name: Install extension dependencies
+        run: bun install --frozen-lockfile
+
+      # Type-check the extension with its own tsconfig.json.
+      - name: Type-check
+        run: bun x tsc --noEmit -p .
+
+      # Bundles src/extension.ts into dist/extension.js, as `vsce package`
+      # would. Proves the extension still builds; nothing is published.
+      - name: Build
+        run: bun run build
+
+      # Unit tests for the extension's local server.
+      - name: Test
+        run: bun test

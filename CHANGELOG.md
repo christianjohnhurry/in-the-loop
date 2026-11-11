@@ -6,6 +6,14 @@ uses [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.16.1] - 2026-11-11 (SWE-36)
+
+### Added
+
+- GitHub Actions workflow `.github/workflows/ci.yml`, run on pull requests and
+  pushes to `main`. It runs lint, typecheck and tests for review-tui, and
+  typecheck, build and tests for `vscode-extension/`. No live-model steps.
+
 ## [0.16.0] - 2026-11-11 (SWE-34)
 
 ### Added

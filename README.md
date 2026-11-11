@@ -195,6 +195,8 @@ bun src/cli.ts --version
 
 Where each file lives and what it does: [`docs/repo-layout.md`](docs/repo-layout.md).
 
+CI (`.github/workflows/ci.yml`) runs on every pull request and push to `main`: lint, typecheck and tests for review-tui, and typecheck, build and tests for `vscode-extension/`. It does not run `eval:judge`, which needs a live model.
+
 User-visible changes are recorded in `CHANGELOG.md`, one entry per ticket, with a version bump in `package.json`.
 
 The logo at the top is `docs/logo.svg`, generated from `src/start.ts` in the start page's colours. After changing the logo, run `bun scripts/logo.ts`. A test fails if the file is out of date.
