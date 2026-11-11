@@ -26,6 +26,8 @@ import {
 } from './github';
 import {
   IdeClient,
+  COMMENT_PLACEHOLDER,
+  GENERAL_COMMENT_HINT,
   describeContext,
   discoverIdes,
   resolveTarget,
@@ -444,10 +446,10 @@ export async function runTui(store: Store, opts: TuiOptions): Promise<void> {
               ? 'comment on the selection'
               : 'path:line comment',
           ),
-          span(
-            '   (or: general: text that applies to the whole review)',
-            'muted',
-          ),
+        ],
+        [
+          span('General: ', 'accent', {bold: true}),
+          span(GENERAL_COMMENT_HINT),
         ],
         ideLine(),
         ...candidateLines(),
@@ -562,7 +564,7 @@ export async function runTui(store: Store, opts: TuiOptions): Promise<void> {
           ? 'your intention…'
           : state.page === 2
             ? 'your question…'
-            : 'path:line comment';
+            : COMMENT_PLACEHOLDER;
       input.focus();
     } else input.blur();
     renderer.requestRender();

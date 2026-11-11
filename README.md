@@ -121,7 +121,7 @@ Write your review comments here. Every line must be in the diff.
 | `42 comment`          | Line in the open file (VS Code, no selection) |
 | `42-48 comment`       | Range in the open file (VS Code, no selection) |
 
-With a VS Code selection, just type the comment. Press Enter to add it.
+With a VS Code selection, just type the comment. Press Enter to add it. With nothing selected, the page shows a `General:` line (and the input placeholder repeats it) telling you to type `general: your note` for a comment on the whole review.
 
 ### Review
 
