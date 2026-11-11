@@ -6,6 +6,20 @@ uses [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.15.0] - 2026-11-11 (SWE-29)
+
+### Changed
+
+- Each section of the posted review body has a `###` heading: "Message from
+  the reviewer", "Reviewer’s understanding of the PR contents and intention
+  (please correct reviewer if wrong)" (still a quote block), "Summary of inline
+  comments" and "General comments". Empty sections, and their headings, are
+  left out as before.
+- The footer is separated from the sections by a `---` rule.
+- The `[reviewer + model]` prefix is now on its own line at the top of the
+  review body, so the first heading starts a line and renders as a heading.
+  Inline comments keep the prefix on the same line.
+
 ## [0.12.0] - 2026-11-10 (SWE-26)
 
 ### Added

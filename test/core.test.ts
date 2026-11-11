@@ -60,7 +60,8 @@ test('payload prefixes body and every inline comment', () => {
     headSha: 'abc',
     comments: [{path: 'src/greet.ts', line: 3, body: 'why?'}],
   });
-  expect(p.body).toBe('[me + m] overall');
+  expect(p.body).toBe('[me + m]\n\noverall');
+  expect(p.comments[0]!.body).toBe('[me + m] why?');
   expect(p.comments).toEqual([
     {path: 'src/greet.ts', line: 3, side: 'RIGHT', body: '[me + m] why?'},
   ]);
@@ -180,10 +181,12 @@ test('review body: message, quote, summary, then general, in order', () => {
     comments: [{path: 'a.ts', line: 1, body: 'x'}],
     general: 'Please add docs.',
   });
-  const message = body.indexOf('Thanks for this.');
+  const message = body.indexOf('### Message from the reviewer\n\nThanks');
   const quote = body.indexOf('> Adds a greeter.\n> It is pure.');
-  const summary = body.indexOf('- 1 inline comment on 1 file.');
-  const general = body.indexOf('Please add docs.');
+  const summary = body.indexOf(
+    '### Summary of inline comments\n\n- 1 inline comment on 1 file.',
+  );
+  const general = body.indexOf('### General comments\n\nPlease add docs.');
   expect(message).toBe(0);
   expect(quote).toBeGreaterThan(message);
   expect(summary).toBeGreaterThan(quote);
@@ -199,7 +202,9 @@ test('review body leaves out empty parts and adds no filler', () => {
   });
   expect(body).not.toContain('>');
   expect(body).not.toContain('General comments');
-  expect(body.startsWith('**Summary of inline comments**')).toBe(true);
+  expect(body).not.toContain('Message from the reviewer');
+  expect(body).not.toContain('understanding');
+  expect(body.startsWith('### Summary of inline comments')).toBe(true);
 });
 
 test('composed body is the single review body, prefixed once', () => {
@@ -216,7 +221,10 @@ test('composed body is the single review body, prefixed once', () => {
     headSha: 'abc',
     comments,
   });
-  expect(p.body.startsWith('[me + m] Hi')).toBe(true);
+  expect(p.body.startsWith('[me + m]\n\n### Message from the reviewer')).toBe(
+    true,
+  );
+  expect(p.body.match(/\[me \+ m\]/g)).toHaveLength(1);
   expect(p.body).toContain('\n> why\n');
   expect(p.comments).toHaveLength(1);
 });
@@ -256,7 +264,7 @@ test('payload body ends with the footer, after the prefixed body', () => {
     comments: [],
     footer,
   });
-  expect(p.body).toBe(`[me + p/m] Body\n\n${footer}`);
+  expect(p.body).toBe(`[me + p/m]\n\nBody\n\n---\n\n${footer}`);
   expect(footer).toContain(`(v${VERSION})`);
 });
 
@@ -267,7 +275,7 @@ test('payload has no footer when none is given', () => {
     headSha: 'abc',
     comments: [],
   });
-  expect(p.body).toBe('[me + m] Body');
+  expect(p.body).toBe('[me + m]\n\nBody');
 });
 
 test('intention section uses the understanding-and-intention heading', () => {
@@ -278,10 +286,49 @@ test('intention section uses the understanding-and-intention heading', () => {
     general: '',
   });
   expect(body).toContain(
-    '_Reviewer’s understanding of the PR contents and intention ' +
-      '(please correct reviewer if wrong):_\n\n> why',
+    '### Reviewer’s understanding of the PR contents and intention ' +
+      '(please correct reviewer if wrong)\n\n> why',
   );
   expect(body).not.toContain('written during the review');
+});
+
+test('every heading and the footer rule start their own line', () => {
+  const comments = [{path: 'a.ts', line: 1, body: 'x'}];
+  const general = composeReviewBody({
+    message: 'Hi',
+    intention: 'why',
+    comments,
+    general: 'More',
+  });
+  const p = buildReviewPayload({
+    prefix: '[me + m]',
+    general,
+    headSha: 'abc',
+    comments,
+    footer: reviewFooter(VERSION, 'p/m'),
+  });
+  const lines = p.body.split('\n');
+  const headings = lines.filter((l) => l.startsWith('### '));
+  expect(headings).toHaveLength(4);
+  expect(lines[0]).toBe('[me + m]');
+  expect(lines[1]).toBe('');
+  expect(lines[2]).toBe('### Message from the reviewer');
+  // A rule directly under text would make that text a setext heading.
+  const rule = lines.indexOf('---');
+  expect(lines[rule - 1]).toBe('');
+  expect(lines[rule + 1]).toBe('');
+  expect(lines.slice(rule + 2)).toEqual([reviewFooter(VERSION, 'p/m')]);
+});
+
+test('an edited draft still gets prefix, trimmed body and footer', () => {
+  const p = buildReviewPayload({
+    prefix: '[me + m]',
+    general: '\n### My own heading\n\ntext\n\n',
+    headSha: 'abc',
+    comments: [],
+    footer: 'F',
+  });
+  expect(p.body).toBe('[me + m]\n\n### My own heading\n\ntext\n\n---\n\nF');
 });
 
 test('review choices map to GitHub events, Comment first and default', () => {
@@ -303,7 +350,7 @@ test('payload event is Comment by default and the chosen one otherwise', () => {
     const p = buildReviewPayload({...base, comments, event});
     expect(p.event).toBe(event);
     expect(p.comments).toHaveLength(1);
-    expect(p.body).toBe('[me + m] B');
+    expect(p.body).toBe('[me + m]\n\nB');
   }
 });
 
