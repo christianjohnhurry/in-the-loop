@@ -6,6 +6,31 @@ uses [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.18.0] - 2026-11-11 (SWE-39)
+
+### Changed
+
+- Enquire now runs in the repo under review (the git top level of the directory
+  you launch from) instead of review-tui's own install, and the agent may
+  `read`, `grep`, `glob` and `list` it, so "where is this called from?" works
+  on the PR's code. It still cannot edit, run commands or use the network, and
+  cannot read `.env` files or anything outside the repo
+  (`.opencode/agents/review-enquire.md`).
+- Repo search is only on when the checkout is the PR's repo (a git remote
+  matches `owner/repo`) at the PR head commit. Otherwise the Enquire page shows
+  "Repo search unavailable: <reason>" (with a `gh pr checkout` hint), the model
+  is told, and it answers from the selection and diff only. The check is
+  repeated on every question.
+- The review agents are now passed to the OpenCode server inline
+  (`src/agents.ts`), because OpenCode only loads `.opencode/agents` from the
+  tree a session runs in. With `OPENCODE_URL` the server must have the agents.
+
+### Added
+
+- `src/checkout.ts` (the PR-head check) and `src/agents.ts`, with tests using a
+  temporary git repo in `test/repo-access.test.ts`.
+- Design doc open question 1 answered (see `docs/design/enquire-page.md`).
+
 ## [0.17.0] - 2026-11-11 (SWE-38)
 
 ### Changed

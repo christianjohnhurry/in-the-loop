@@ -138,6 +138,7 @@ Select code in VS Code, ask a question, get a plain-text explanation. The model 
 │                                                                          │
 │ Ask about the code you selected. You judge; the model explains.          │
 │ Subject: src/llm.ts:L42-48                                             ① │
+│ Repo search: on (checkout is at the PR head)                           ⑥ │
 │                                                                          │
 │ ── src/llm.ts:L42-48                                                   ② │
 │   const res = await client.session.prompt({                              │
@@ -156,6 +157,7 @@ Select code in VS Code, ask a question, get a plain-text explanation. The model 
 3. **Question**: what the reviewer typed.
 4. **Answer**: the model's reply, in the model colour. The last five exchanges are shown and are kept for this run only.
 5. **Thinking**: a glowing status while the request is in flight.
+6. **Repo search**: `on` when the checkout is the PR's repo at the PR head commit, so the agent can search it. Otherwise `Repo search unavailable: <reason>` (not a git checkout, a different repo, or a different commit, with the `gh pr checkout` hint) and the model sees only the selection and diff. Re-checked on every question.
 
 | Input | Action                                         |
 | ----- | ---------------------------------------------- |
@@ -316,7 +318,7 @@ In words, per pane:
 
 - **Checklist** reads and writes only `state.json`.
 - **Intention** sends the reviewer's statement, the PR description and the diff to the `review-judge` agent in OpenCode. Only a parsed `pass` or `retry` and a length-capped hint come back, and a hint that copies the PR description is replaced. On `pass`, the reviewer's own text goes into the Intention section of `comments.md`.
-- **Enquire** sends the question, the current VS Code selection and the diff to the read-only `review-enquire` agent. The answer is shown and then dropped. It never reaches `comments.md`, the Review page or GitHub.
+- **Enquire** sends the question, the current VS Code selection and the diff to the read-only `review-enquire` agent, which runs in the repo under review (git top level of the directory you launched from) and may `read`, `grep`, `glob` and `list` it when repo search is on. In degraded mode it runs as `review-enquire-norepo`, with those denied. The answer is shown and then dropped. It never reaches `comments.md`, the Review page or GitHub.
 - **Comments** takes the file and lines from the typed text or from the VS Code selection, checks them against the diff, and appends to `comments.md`. No LLM.
 - **Review** checks the gates from `state.json` and `comments.md`, sends `comments.md` to the judge for feedback on `s`, and on `p` builds the review body (your message, quoted intention, two-line summary, general comments, each under a `###` heading; `m` and `b` edit it), ends it with a `---` rule and a footer naming the review-tui version, prefixes every comment with `[$REVIEWER + $MODEL]`, asks which review type to post (Comment by default, Request changes, or Approve), asks for a final `y` showing the PR, type and comment count, then writes `payload.json` and posts one GitHub review of that type.
 
@@ -326,4 +328,4 @@ The extension in `vscode-extension/` runs a local WebSocket server and publishes
 
 ### The LLM
 
-All LLM calls go to a local OpenCode server (or `OPENCODE_URL`), each in a fresh session, using the model chosen on the start page (saved in `state.json`). The agents are read-only and live in `.opencode/agents/`: `review-judge.md` (Intention, Review feedback) and `review-enquire.md` (Enquire).
+All LLM calls go to a local OpenCode server (or `OPENCODE_URL`), each in a fresh session, using the model chosen on the start page (saved in `state.json`). The agents are read-only and live in `.opencode/agents/` (passed to OpenCode inline, so they load whatever directory the session runs in): `review-judge.md` (Intention, Review feedback) and `review-enquire.md` (Enquire).

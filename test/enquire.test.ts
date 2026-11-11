@@ -17,6 +17,7 @@ const input: EnquireInput = {
   question: 'What does greet() do?',
   subject: {path: 'src/greet.ts', startLine: 2, endLine: 4, text: 'SELECTED'},
   diff: 'DIFFTEXT',
+  repo: {search: true, root: '/work/repo'},
 };
 
 test('prompt carries question, selection with its range, and diff', () => {
@@ -104,7 +105,12 @@ test('the Enquire agent denies edit, bash, web, task and question', async () => 
     'question',
   ])
     expect(front).toMatch(new RegExp(`^\\s+${tool}: deny$`, 'm'));
-  expect(front).not.toMatch(/: allow/);
+  // Repo tools are allowed (the agent runs in the repo under review) ...
+  for (const tool of ['grep', 'glob', 'list'])
+    expect(front).toMatch(new RegExp(`^\\s+${tool}: allow$`, 'm'));
+  // ... but secrets are not, and nothing outside the repo is.
+  expect(front).toMatch(/^\s+external_directory: deny$/m);
+  expect(front).toMatch(/"\*\.env": deny/);
   for (const g of Array.from({length: 11}, (_, i) => `G${i + 1}.`))
     expect(md).toContain(g);
 });
@@ -152,4 +158,14 @@ test('an old state.json resumes on the same page after reopening', async () => {
   expect(store.state.page).toBe(4);
   const saved = await Bun.file(join(dir, 'state.json')).json();
   expect(saved.version).toBe(STATE_VERSION);
+});
+
+test('the prompt tells the agent whether it may search the repo', () => {
+  expect(enquirePrompt(input)).toContain('You may use read, grep, glob');
+  const p = enquirePrompt({
+    ...input,
+    repo: {search: false, root: '/x', reason: 'checkout is at abc1234'},
+  });
+  expect(p).toContain('Repo search is unavailable (checkout is at abc1234)');
+  expect(p).not.toContain('You may use read');
 });

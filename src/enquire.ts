@@ -3,9 +3,9 @@
  * selected and gets a plain-text explanation. Guardrails are in
  * `.opencode/agents/review-enquire.md`.
  */
+import {ENQUIRE_AGENT, ENQUIRE_NO_REPO_AGENT} from './agents';
+import type {RepoAccess} from './checkout';
 import {ask, type Ask} from './llm';
-
-const AGENT = 'review-enquire';
 
 /** Longest question sent, in characters. */
 export const QUESTION_CAP = 2_000;
@@ -31,6 +31,8 @@ export interface EnquireInput {
   /** Null when nothing is selected. */
   subject: Subject | null;
   diff: string;
+  /** The checkout the agent runs in, and whether it may search it. */
+  repo: RepoAccess;
 }
 
 /** What the page shows for one question. */
@@ -70,7 +72,7 @@ export function subjectLabel(s: Subject): string {
  * @return The prompt text.
  */
 export function enquirePrompt(input: EnquireInput): string {
-  const {question, subject, diff} = input;
+  const {question, subject, diff, repo} = input;
   return [
     "TASK: answer the reviewer's question about the code below, following your rules.",
     'The selection is the SUBJECT of the question, not something to examine for problems.',
@@ -88,6 +90,12 @@ export function enquirePrompt(input: EnquireInput): string {
     '<diff>',
     capText(diff, DIFF_CAP),
     '</diff>',
+    '',
+    '<repo_access>',
+    repo.search
+      ? 'You may use read, grep, glob and list on the repo under review (your working directory). It is at the PR head commit.'
+      : `Repo search is unavailable (${repo.reason}). You can only see the selection and diff above; if the answer needs other code, say you cannot see it.`,
+    '</repo_access>',
   ].join('\n');
 }
 
@@ -97,13 +105,20 @@ export function enquirePrompt(input: EnquireInput): string {
  * Any failure becomes our own text, never raw model or transport output.
  *
  * @param input The question, subject and diff.
- * @param run Model call; defaults to the Enquire agent on OpenCode.
+ * @param run Model call; defaults to the Enquire agent on OpenCode, run in
+ *   the checkout under review (with repo tools only if `input.repo.search`).
  * @param onError Called with the underlying error, for logging.
  * @return The answer, or a message to show instead.
  */
 export async function enquire(
   input: EnquireInput,
-  run: Ask = (prompt) => ask(prompt, undefined, AGENT),
+  run: Ask = (prompt) =>
+    ask(
+      prompt,
+      undefined,
+      input.repo.search ? ENQUIRE_AGENT : ENQUIRE_NO_REPO_AGENT,
+      input.repo.root,
+    ),
   onError: (e: unknown) => void = (): void => {},
 ): Promise<EnquireResult> {
   const question = input.question.trim();

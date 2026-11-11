@@ -244,7 +244,7 @@ Differences are deliberate: tidy-up *rewrites the reviewer's words*, so its safe
 
 ## Open questions
 
-1. Does OpenCode load project agents and resolve tool permissions when `directory` points at a tree other than review-tui's own? Needs checking in task 3; the fallback is to pass the agent definition inline via config.
+1. ~~Does OpenCode load project agents and resolve tool permissions when `directory` points at a tree other than review-tui's own?~~ **Answered (SWE-39): no.** `app.agents({directory})` in another repo lists none of `.opencode/agents`. The fallback works: review-tui reads the agent files (`src/agents.ts`) and passes them in the server's `config.agent`, and the permissions apply in any directory. This does not help with `OPENCODE_URL`, whose server must have the agents itself. Also found: fully denying `read` makes OpenCode never answer, so the no-repo agent allows `read` for one path that cannot exist.
 2. Should past answers be given back to the model after a relaunch? Better continuity vs stale answers after new pushes. Proposal says no.
 3. How large are the repos reviewers use this on? Size limits and the `grep` tool cost on a monorepo are guesses.
 4. Should `$MODEL` apply to Enquire exactly as to the judge? Proposal: yes, same model, same prefix source, since it already applies to every prompt.
