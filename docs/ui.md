@@ -80,7 +80,7 @@ Pressing `m` swaps the prompt for a model picker between the `model:` line and t
 
 ## Checklist page
 
-Eleven steps from Google's engineering-practices code review guide. No LLM. All must be ticked before the Review page unlocks.
+Eleven steps from Google's engineering-practices code review guide. No LLM. All must be ticked before `s` (start review) and `p` (post) work on the Review page; the page itself is always reachable.
 
 ```
 ┌──────────────────────────────────────────────────────────────────────────┐

@@ -14,6 +14,8 @@ A terminal UI that walks a reviewer through a GitHub PR: checklist, intention, e
 
 The AI checks the reviewer's understanding and comments. The reviewer stays the author.
 
+**New here?** Follow the [quick guide](docs/review-tui-quick-guide.md) to review a PR end to end.
+
 ```
  ◀ [ Checklist ]  Intention  Enquire  Comments  Review ▶     ✻ In The Loop
 ┌─────────────────────────────────────────────────────────────────────┐

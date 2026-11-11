@@ -66,6 +66,7 @@ in-the-loop/
 │
 ├── docs/
 │   ├── ui.md                      What the TUI looks like, its keys, and how data flows
+│   ├── review-tui-quick-guide.md  Short task-focused guide: launch, each page in order, posting
 │   ├── repo-layout.md             This file
 │   ├── ide-protocol.md            The VS Code to review-tui message protocol
 │   ├── design/enquire-page.md     Design and guardrail rules for the Enquire page
