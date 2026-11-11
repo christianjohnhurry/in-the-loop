@@ -6,6 +6,15 @@ uses [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.13.0] - 2026-11-11 (SWE-27)
+
+### Added
+
+- The Comments page always shows a `General:` line explaining how to add a
+  general comment (`general: your note` + Enter, no selection needed), and the
+  input placeholder mentions it too. Previously the hint was a small muted
+  aside on the `Add:` line.
+
 ## [0.12.0] - 2026-11-10 (SWE-26)
 
 ### Added
