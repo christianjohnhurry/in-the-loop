@@ -198,3 +198,7 @@ Where each file lives and what it does: [`docs/repo-layout.md`](docs/repo-layout
 User-visible changes are recorded in `CHANGELOG.md`, one entry per ticket, with a version bump in `package.json`.
 
 The logo at the top is `docs/logo.svg`, generated from `src/start.ts` in the start page's colours. After changing the logo, run `bun scripts/logo.ts`. A test fails if the file is out of date.
+
+## Licence
+
+MIT. See [`LICENSE`](LICENSE).
