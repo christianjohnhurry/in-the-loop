@@ -236,7 +236,7 @@ Gated: `s` and `p` need a complete checklist, a passed intention and at least on
 2. **Mode**: `dry run` or red `POST (live)` with `--post`.
 3. **Review body**: your message to the author (`m`), the intention as a `> ` quote, a two-line summary of the inline comments, then your general comments. Posting adds a footer with the version and model. `b` edits the whole body.
 4. **Feedback**: one-shot LLM feedback on accuracy and fairness, after `s`. Pressing `s` again after an edit re-runs it on the current `comments.md`; the heading shows the run number.
-5. **Payload**: the review that `p` built, also saved to `payload.json`. After `p`, a line `Post review as: [Comment] Request changes Approve` shows the type; `←`/`→` or `c`/`r`/`a` choose, Enter confirms, Esc cancels. If GitHub refuses the type (for example approving your own PR) the error is shown and the prompt stays open.
+5. **Payload**: the review that `p` built, also saved to `payload.json`. After `p`, a line `Post review as: [Comment] Request changes Approve` shows the type; `←`/`→` or `c`/`r`/`a` choose, Enter confirms, Esc cancels. If GitHub refuses the type the error is shown and the prompt stays open. Approving or requesting changes on your own PR shows "Cannot approve or request changes on a PR you opened yourself. Post as a Comment instead."; press `c` and Enter to post as a Comment.
 
 | Key | Action                                                          |
 | --- | --------------------------------------------------------------- |

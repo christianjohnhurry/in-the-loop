@@ -6,6 +6,16 @@ uses [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.14.0] - 2026-11-11 (SWE-28)
+
+### Changed
+
+- Approving or requesting changes on a PR you opened yourself now shows a
+  plain message, "Cannot approve or request changes on a PR you opened
+  yourself. Post as a Comment instead.", instead of GitHub's raw error.
+  Nothing is posted, your review is kept and the review type prompt stays
+  open, so you can switch to Comment and post straight away.
+
 ## [0.13.0] - 2026-11-11 (SWE-27)
 
 ### Added
