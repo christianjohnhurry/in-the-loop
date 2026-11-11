@@ -172,7 +172,8 @@ Where most of the time is spent. Each comment is appended to `comments.md`.
 ┌──────────────────────────────────────────────────────────────────────────┐
 │ ◀ Checklist  Intention  Enquire  [ Comments ]  Review ▶  (4/5)  PR #7    │
 │                                                                          │
-│ Add: comment on the selection   (or: general: text for whole review)     │
+│ Add: comment on the selection                                            │
+│ General: no code selected? type "general: your note" and press Enter     │
 │ IDE: Visual Studio Code connected · src/llm.ts:L42-48                  ① │
 │ Files in diff:                                                         ② │
 │   src/llm.ts                                                             │
@@ -183,14 +184,15 @@ Where most of the time is spent. Each comment is appended to `comments.md`.
 │   README.md:L3 — Typo: "teh".                                            │
 │                                                                          │
 │ Added on src/llm.ts:L42-48.                                              │
-│ > path:line comment                                                      │
+│ > path:line comment, or general: your note                               │
 │ ←/→ pages · Ctrl+C quit · Enter add · Esc leave input                    │
 └──────────────────────────────────────────────────────────────────────────┘
 ```
 
-1. **IDE line**: the connection and what VS Code is showing. Without a selection it suggests `42 comment`.
-2. **Files in diff**: only lines in the PR diff can be commented on.
-3. **Comments**: what is in `comments.md` now, including edits made on the Review page.
+1. **General line**: always shown, so a new user can see how to add a comment that is not tied to code.
+2. **IDE line**: the connection and what VS Code is showing. Without a selection it suggests `42 comment`.
+3. **Files in diff**: only lines in the PR diff can be commented on.
+4. **Comments**: what is in `comments.md` now, including edits made on the Review page.
 
 | Input                  | Meaning                                         |
 | ---------------------- | ----------------------------------------------- |
@@ -238,7 +240,7 @@ Gated: `s` and `p` need a complete checklist, a passed intention and at least on
 2. **Mode**: `dry run` or red `POST (live)` with `--post`.
 3. **Review body**: each part under its own `###` heading: your message to the author (`m`), the intention as a `> ` quote, a two-line summary of the inline comments, then your general comments (empty parts are left out). Posting puts the `[reviewer + model]` prefix on its own first line and ends the body with a `---` rule and a footer with the version and model. `b` edits the whole body.
 4. **Feedback**: one-shot LLM feedback on accuracy and fairness, after `s`. Pressing `s` again after an edit re-runs it on the current `comments.md`; the heading shows the run number.
-5. **Payload**: the review that `p` built, also saved to `payload.json`. After `p`, a line `Post review as: [Comment] Request changes Approve` shows the type; `←`/`→` or `c`/`r`/`a` choose, Enter confirms, Esc cancels. If GitHub refuses the type (for example approving your own PR) the error is shown and the prompt stays open.
+5. **Payload**: the review that `p` built, also saved to `payload.json`. After `p`, a line `Post review as: [Comment] Request changes Approve` shows the type; `←`/`→` or `c`/`r`/`a` choose, Enter confirms, Esc cancels. If GitHub refuses the type the error is shown and the prompt stays open. Approving or requesting changes on your own PR shows "Cannot approve or request changes on a PR you opened yourself. Post as a Comment instead."; press `c` and Enter to post as a Comment.
 
 | Key | Action                                                          |
 | --- | --------------------------------------------------------------- |

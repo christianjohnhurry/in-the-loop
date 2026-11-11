@@ -5,6 +5,8 @@ import {join} from 'node:path';
 import {buildReviewPayload, parseDiff} from '../src/github';
 import {
   AUTH_HEADER,
+  COMMENT_PLACEHOLDER,
+  GENERAL_COMMENT_HINT,
   IdeClient,
   describeContext,
   discoverIdes,
@@ -153,4 +155,9 @@ test('IdeClient authenticates, tracks context, survives the IDE closing', async 
   expect(client.context).toEqual({path: null, selection: null});
   expect(client.problem).toContain('closed');
   client.disconnect();
+});
+
+test('comment hints name the general: prefix', () => {
+  expect(GENERAL_COMMENT_HINT).toContain('general:');
+  expect(COMMENT_PLACEHOLDER).toContain('general:');
 });

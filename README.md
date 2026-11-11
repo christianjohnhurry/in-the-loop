@@ -121,7 +121,7 @@ Write your review comments here. Every line must be in the diff.
 | `42 comment`          | Line in the open file (VS Code, no selection) |
 | `42-48 comment`       | Range in the open file (VS Code, no selection) |
 
-With a VS Code selection, just type the comment. Press Enter to add it.
+With a VS Code selection, just type the comment. Press Enter to add it. With nothing selected, the page shows a `General:` line (and the input placeholder repeats it) telling you to type `general: your note` for a comment on the whole review.
 
 ### Review
 
@@ -135,7 +135,7 @@ With a VS Code selection, just type the comment. Press Enter to add it.
 
 `s` and `p` need a complete checklist, a passed intention and at least one comment. Without `--post`, `p` is a dry run and only saves `payload.json`.
 
-`p` opens a prompt for the review type: **Comment** (the default), **Request changes** or **Approve**. Press `←`/`→` or `c`/`r`/`a` to choose, Enter to post (or save the dry-run payload), Esc to cancel. The chosen type is shown in the prompt before anything is sent, and becomes the `event` of the review (`COMMENT`, `REQUEST_CHANGES`, `APPROVE`). If GitHub refuses it, for example approving or requesting changes on your own PR, the error is shown, nothing is posted, and the prompt stays open so you can pick another type; your comments, message and body are kept.
+`p` opens a prompt for the review type: **Comment** (the default), **Request changes** or **Approve**. Press `←`/`→` or `c`/`r`/`a` to choose, Enter to post (or save the dry-run payload), Esc to cancel. The chosen type is shown in the prompt before anything is sent, and becomes the `event` of the review (`COMMENT`, `REQUEST_CHANGES`, `APPROVE`). If GitHub refuses it, the error is shown, nothing is posted, and the prompt stays open so you can pick another type; your comments, message and body are kept. If the refusal is because you opened the PR yourself, the message is plain: "Cannot approve or request changes on a PR you opened yourself. Post as a Comment instead." Press `c` and Enter to post as a Comment.
 
 The review can be re-run as often as you like: press `e` to edit `comments.md`, then `s` again. Each run reads `comments.md` as it is now, so it sees your edits, and replaces the previous feedback. The heading shows which run the feedback is from.
 

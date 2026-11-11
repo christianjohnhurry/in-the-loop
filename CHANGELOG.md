@@ -20,6 +20,25 @@ uses [Semantic Versioning](https://semver.org/).
   review body, so the first heading starts a line and renders as a heading.
   Inline comments keep the prefix on the same line.
 
+## [0.14.0] - 2026-11-11 (SWE-28)
+
+### Changed
+
+- Approving or requesting changes on a PR you opened yourself now shows a
+  plain message, "Cannot approve or request changes on a PR you opened
+  yourself. Post as a Comment instead.", instead of GitHub's raw error.
+  Nothing is posted, your review is kept and the review type prompt stays
+  open, so you can switch to Comment and post straight away.
+
+## [0.13.0] - 2026-11-11 (SWE-27)
+
+### Added
+
+- The Comments page always shows a `General:` line explaining how to add a
+  general comment (`general: your note` + Enter, no selection needed), and the
+  input placeholder mentions it too. Previously the hint was a small muted
+  aside on the `Add:` line.
+
 ## [0.12.0] - 2026-11-10 (SWE-26)
 
 ### Added
