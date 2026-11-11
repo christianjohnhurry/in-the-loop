@@ -172,7 +172,8 @@ Where most of the time is spent. Each comment is appended to `comments.md`.
 ┌──────────────────────────────────────────────────────────────────────────┐
 │ ◀ Checklist  Intention  Enquire  [ Comments ]  Review ▶  (4/5)  PR #7    │
 │                                                                          │
-│ Add: comment on the selection   (or: general: text for whole review)     │
+│ Add: comment on the selection                                            │
+│ General: no code selected? type "general: your note" and press Enter     │
 │ IDE: Visual Studio Code connected · src/llm.ts:L42-48                  ① │
 │ Files in diff:                                                         ② │
 │   src/llm.ts                                                             │
@@ -183,14 +184,15 @@ Where most of the time is spent. Each comment is appended to `comments.md`.
 │   README.md:L3 — Typo: "teh".                                            │
 │                                                                          │
 │ Added on src/llm.ts:L42-48.                                              │
-│ > path:line comment                                                      │
+│ > path:line comment, or general: your note                               │
 │ ←/→ pages · Ctrl+C quit · Enter add · Esc leave input                    │
 └──────────────────────────────────────────────────────────────────────────┘
 ```
 
-1. **IDE line**: the connection and what VS Code is showing. Without a selection it suggests `42 comment`.
-2. **Files in diff**: only lines in the PR diff can be commented on.
-3. **Comments**: what is in `comments.md` now, including edits made on the Review page.
+1. **General line**: always shown, so a new user can see how to add a comment that is not tied to code.
+2. **IDE line**: the connection and what VS Code is showing. Without a selection it suggests `42 comment`.
+3. **Files in diff**: only lines in the PR diff can be commented on.
+4. **Comments**: what is in `comments.md` now, including edits made on the Review page.
 
 | Input                  | Meaning                                         |
 | ---------------------- | ----------------------------------------------- |

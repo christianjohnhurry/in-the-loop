@@ -374,6 +374,13 @@ export function resolveTarget(
   return {path, ...(startLine === undefined ? {} : {startLine}), line: last};
 }
 
+/** Always-visible Comments page hint for a comment not tied to code. */
+export const GENERAL_COMMENT_HINT =
+  'no code selected? type "general: your note" and press Enter';
+
+/** Input placeholder on the Comments page; mentions both comment kinds. */
+export const COMMENT_PLACEHOLDER = 'path:line comment, or general: your note';
+
 /**
  * Formats a context for display, e.g. `src/llm.ts:L42-48`.
  *
