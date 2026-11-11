@@ -6,6 +6,17 @@ uses [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.16.0] - 2026-11-11 (SWE-34)
+
+### Added
+
+- `LICENSE` (MIT). The `license` field in `package.json` is now `MIT`, and the
+  README has a Licence section.
+
+### Changed
+
+- `vscode-extension/package.json` `license` changed from `UNLICENSED` to `MIT`.
+
 ## [0.15.1] - 2026-11-11 (SWE-32)
 
 ### Added

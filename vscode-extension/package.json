@@ -5,7 +5,7 @@
   "version": "0.1.0",
   "publisher": "in-the-loop",
   "private": true,
-  "license": "UNLICENSED",
+  "license": "MIT",
   "repository": {
     "type": "git",
     "url": "https://github.com/christianjohnhurry/in-the-loop"
