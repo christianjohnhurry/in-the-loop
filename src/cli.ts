@@ -1,11 +1,12 @@
 #!/usr/bin/env bun
 /**
- * Command-line entry point: `review-tui [pr-url] [--post]` (or `--version`).
+ * Command-line entry point: `review-tui [pr-url]` (or `--version`).
  *
  * Without a URL, reviews the open PR for the current git branch.
  *
  * Opens (or resumes) the review directory for the PR, then hands control to
- * the terminal UI. Without `--post` the final step is a dry run.
+ * the terminal UI. Posting happens only from the Review page, after the
+ * reviewer confirms.
  */
 import {resolve} from 'node:path';
 import {closeLlm, fetchProviders, setModel} from './llm';
@@ -22,15 +23,24 @@ if (args.includes('--version')) {
   console.log(pkg.version);
   process.exit(0);
 }
-const post = args.includes('--post');
-const urlArg = args.find((a) => !a.startsWith('--'));
+const unknown = args.find((a) => a.startsWith('--'));
+if (unknown) {
+  console.error(
+    unknown === '--post'
+      ? 'review-tui: --post was removed; press p on the Review page to post (you will be asked to confirm).'
+      : `review-tui: unknown option ${unknown}`,
+  );
+  console.error('usage: review-tui [pr-url]');
+  process.exit(2);
+}
+const urlArg = args[0];
 let url: string;
 try {
   url = await resolvePrUrl(urlArg, systemEnv);
 } catch (e) {
   if (!(e instanceof TargetError)) throw e;
   console.error(`review-tui: ${e.message}`);
-  console.error('usage: review-tui [pr-url] [--post]');
+  console.error('usage: review-tui [pr-url]');
   process.exit(2);
 }
 
@@ -56,4 +66,4 @@ const store = await openStore(
   process.env.REVIEW_ROOT ?? resolve(process.cwd()),
   url,
 );
-await runTui(store, {post});
+await runTui(store);

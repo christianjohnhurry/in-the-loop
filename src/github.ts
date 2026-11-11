@@ -375,7 +375,7 @@ export interface ReviewPayload {
  * a heading at the start of the body still starts a line and renders.
  *
  * @param input Prefix, general comment, inline comments and head commit.
- * @return The payload to send (or print, in a dry run).
+ * @return The payload to send.
  */
 export function buildReviewPayload(input: ReviewInput): ReviewPayload {
   const tag = (s: string): string => `${input.prefix} ${s}`;

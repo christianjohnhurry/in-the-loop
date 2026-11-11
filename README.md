@@ -41,10 +41,11 @@ Every page, its keys, and how data flows between the panes, VS Code and the LLM:
 
 ```sh
 bun install
-bun src/cli.ts                                                     # review the open PR for the current branch
-bun src/cli.ts https://github.com/<owner>/<repo>/pull/<n>          # dry run
-bun src/cli.ts https://github.com/<owner>/<repo>/pull/<n> --post   # really post
+bun src/cli.ts                                            # review the open PR for the current branch
+bun src/cli.ts https://github.com/<owner>/<repo>/pull/<n> # review a specific PR
 ```
+
+Nothing is posted until you press `p` on the Review page and confirm (see [Review](#review)). There is no dry-run mode and no `--post` flag; passing `--post` is an error.
 
 Without a URL, review-tui finds the open PR for the branch you have checked out (via `gh pr view`). It must be run inside a git repo on a branch, not a detached HEAD; otherwise it exits with code 2 and suggests passing a URL. A URL argument always wins and works from any directory.
 
@@ -135,9 +136,9 @@ With a VS Code selection, just type the comment. Press Enter to add it. With not
 | `b` | Edit the review body in `$EDITOR`                     |
 | `p` | Choose the review type, then post it              |
 
-`s` and `p` need a complete checklist, a passed intention and at least one comment. Without `--post`, `p` is a dry run and only saves `payload.json`.
+`s` and `p` need a complete checklist, a passed intention and at least one comment. Nothing is sent until you confirm.
 
-`p` opens a prompt for the review type: **Comment** (the default), **Request changes** or **Approve**. Press `←`/`→` or `c`/`r`/`a` to choose, Enter to post (or save the dry-run payload), Esc to cancel. The chosen type is shown in the prompt before anything is sent, and becomes the `event` of the review (`COMMENT`, `REQUEST_CHANGES`, `APPROVE`). If GitHub refuses it, the error is shown, nothing is posted, and the prompt stays open so you can pick another type; your comments, message and body are kept. If the refusal is because you opened the PR yourself, the message is plain: "Cannot approve or request changes on a PR you opened yourself. Post as a Comment instead." Press `c` and Enter to post as a Comment.
+`p` opens a prompt for the review type: **Comment** (the default), **Request changes** or **Approve**. Press `←`/`→` or `c`/`r`/`a` to choose, Enter to continue, Esc to cancel. Enter does not post: it opens a confirmation that shows the PR (`owner/repo#number`), the review type, the number of inline comments and that the review will be posted publicly to GitHub. Press `y` to post for real; Esc or `n` cancels, and any other key (including Enter) does nothing. The chosen type becomes the `event` of the review (`COMMENT`, `REQUEST_CHANGES`, `APPROVE`). Just before sending, the review is saved to `payload.json` (handy for debugging). If GitHub refuses it, the error is shown, nothing is posted, and the prompt goes back to the type step so you can pick another type; your comments, message and body are kept. If the refusal is because you opened the PR yourself, the message is plain: "Cannot approve or request changes on a PR you opened yourself. Post as a Comment instead." Press `c`, Enter, then `y` to post as a Comment.
 
 The review can be re-run as often as you like: press `e` to edit `comments.md`, then `s` again. Each run reads `comments.md` as it is now, so it sees your edits, and replaces the previous feedback. The heading shows which run the feedback is from.
 
@@ -181,7 +182,7 @@ State lives in `reviews/<repo>-<pr>/`:
 | `diff.patch`   | The PR diff                           |
 | `review-message.md` | Your message to the author, after `m` |
 | `review-body.md` | Your edited review body, after `b` |
-| `payload.json` | The review payload, after `p`         |
+| `payload.json` | The review payload, saved just before posting |
 
 ## Development
 

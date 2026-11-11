@@ -28,6 +28,7 @@ in-the-loop/
 │   │                              lines, build and post the review payload
 │   ├── checklist.ts               The eleven review steps and "is it complete?"
 │   ├── gates.ts                   Rules for starting the review (checklist, intention, comments)
+│   ├── postprompt.ts              The post prompt: choose a review type, then confirm with y
 │   ├── revise.ts                  One review run: read comments.md as it is now, get feedback, count runs
 │   ├── llm.ts                     OpenCode client: ask an agent, judge intentions, review comments
 │   ├── model.ts                   Model choice: parse provider/model, list, filter, pick default
@@ -41,6 +42,7 @@ in-the-loop/
 │   ├── enquire.test.ts            Enquire input and output limits
 │   ├── ide.test.ts                IDE discovery, connection and targets
 │   ├── model.test.ts              Model parsing, filtering and defaults
+│   ├── postprompt.test.ts         Post prompt: choose, confirm, cancel and refusal
 │   ├── revise.test.ts             Repeated review runs see edited comments
 │   ├── start.test.ts              Start page and logo (fails if docs/logo.svg is stale)
 │   ├── target.test.ts             PR selection from URL or branch

@@ -12,8 +12,14 @@ import {
 import {CHECKLIST} from './checklist';
 import {reviewGates} from './gates';
 import {
+  afterRefusal,
+  confirmationLines,
+  openPostPrompt,
+  pressPostKey,
+  type PostPrompt,
+} from './postprompt';
+import {
   buildReviewPayload,
-  DEFAULT_REVIEW_EVENT,
   explainPostError,
   composeReviewBody,
   ghLogin,
@@ -81,24 +87,17 @@ const PAGES = [
 /** Index of the Enquire page in {@link PAGES}. */
 const ENQUIRE_PAGE = 2;
 
-/** Options for {@link runTui}. */
-export interface TuiOptions {
-  /** If true, `p` sends the review; otherwise it is a dry run. */
-  post: boolean;
-}
-
 /**
  * Runs the five-page review UI until the user quits.
  *
  * Pages: Checklist (tick steps), Intention (state what the PR does; an LLM
  * judge says pass/retry), Enquire (ask about the selected code; never locked,
  * not a gate), Comments (`path:line comment`), Review (gated;
- * model feedback, edit in $EDITOR, dry-run or post).
+ * model feedback, edit in $EDITOR, post after a confirmation).
  *
  * @param store The open review (state, diff, directory).
- * @param opts Run options.
  */
-export async function runTui(store: Store, opts: TuiOptions): Promise<void> {
+export async function runTui(store: Store): Promise<void> {
   const {state} = store;
   const files = parseDiff(store.diff);
   const repoRoot = gitRoot();
@@ -205,8 +204,8 @@ export async function runTui(store: Store, opts: TuiOptions): Promise<void> {
   const ide = new IdeClient(() => void draw());
   let typingOff = false; // Esc: leave the input so arrows navigate
   let payloadText = '';
-  /** The posting prompt, open after `p`; `event` is the highlighted type. */
-  let posting: {event: ReviewEvent} | undefined;
+  /** The posting prompt, open after `p`. */
+  let posting: PostPrompt | undefined;
   let bodyText = ''; // review body as it would be posted, without the prefix
   let bodyEdited = false; // bodyText comes from review-body.md
   let asking = false; // an Enquire question is in flight
@@ -475,33 +474,39 @@ export async function runTui(store: Store, opts: TuiOptions): Promise<void> {
                 bold: true,
               }),
         ],
-        [
-          span('Mode: ', 'accent', {bold: true}),
-          opts.post
-            ? span('POST (live)', 'error', {bold: true})
-            : span('dry run', 'muted'),
-        ],
         ...(posting
-          ? [
-              [],
-              [
-                span('Post review as: ', 'accent', {bold: true}),
-                ...REVIEW_CHOICES.flatMap((c) => [
-                  c.event === posting!.event
-                    ? span(`[${c.label}]`, 'accent', {bold: true})
-                    : span(` ${c.label} `, 'muted'),
-                  span('  '),
+          ? posting.step === 'confirm'
+            ? [
+                [],
+                [span('Post this review? ', 'error', {bold: true})],
+                ...confirmationLines(state.pr, posting).map((l) => [
+                  span(l, 'accent'),
                 ]),
-              ],
-              [
-                span(
-                  opts.post
-                    ? 'Enter posts it to GitHub with the inline comments and body · Esc cancels'
-                    : 'Enter saves the dry-run payload · Esc cancels',
-                  'muted',
-                ),
-              ],
-            ]
+                [
+                  span(
+                    'Press y to post for real · Esc or n cancels · Enter does nothing here',
+                    'muted',
+                  ),
+                ],
+              ]
+            : [
+                [],
+                [
+                  span('Post review as: ', 'accent', {bold: true}),
+                  ...REVIEW_CHOICES.flatMap((c) => [
+                    c.event === posting!.event
+                      ? span(`[${c.label}]`, 'accent', {bold: true})
+                      : span(` ${c.label} `, 'muted'),
+                    span('  '),
+                  ]),
+                ],
+                [
+                  span(
+                    'Enter continues to the confirmation (nothing is sent yet) · Esc cancels',
+                    'muted',
+                  ),
+                ],
+              ]
           : []),
         [],
         ...(bodyText
@@ -541,12 +546,11 @@ export async function runTui(store: Store, opts: TuiOptions): Promise<void> {
       ]);
       const sVerb = state.reviewRuns ? 're-run' : 'start';
       hint = posting
-        ? '←/→ or c/r/a choose review type · Enter ' +
-          (opts.post ? 'post' : 'dry-run') +
-          ' · Esc cancel'
+        ? posting.step === 'confirm'
+          ? 'y post for real · Esc/n cancel'
+          : '←/→ or c/r/a choose review type · Enter continue · Esc cancel'
         : hint +
-          ` · s ${sVerb} review · e edit comments.md · m message · b edit body · p ` +
-          (opts.post ? 'post' : 'dry-run payload');
+          ` · s ${sVerb} review · e edit comments.md · m message · b edit body · p post`;
     }
     pager.show(state.page);
     pager.active.text.content = text;
@@ -820,13 +824,11 @@ export async function runTui(store: Store, opts: TuiOptions): Promise<void> {
     });
     payloadText = JSON.stringify(payload, null, 2);
     await Bun.write(`${store.dir}/payload.json`, payloadText);
-    if (opts.post) {
-      try {
-        say(`Posted: ${await postReview(state.pr, payload)}`);
-      } catch (e) {
-        throw new PostError(explainPostError(event, (e as Error).message));
-      }
-    } else say(`Dry run: payload saved to ${store.dir}/payload.json`);
+    try {
+      say(`Posted: ${await postReview(state.pr, payload)}`);
+    } catch (e) {
+      throw new PostError(explainPostError(event, (e as Error).message));
+    }
     posting = undefined;
   }
 
@@ -874,27 +876,27 @@ export async function runTui(store: Store, opts: TuiOptions): Promise<void> {
       return;
     }
     if (posting && state.page === 4) {
-      const i = REVIEW_CHOICES.findIndex((c) => c.event === posting!.event);
-      const n = REVIEW_CHOICES.length;
-      const byKey = REVIEW_CHOICES.find((c) => c.key === key.name);
-      if (key.name === 'escape') {
+      if (busy) return;
+      const next = pressPostKey(posting, key.name);
+      posting = next.prompt;
+      if (next.action === 'cancel') {
         posting = undefined;
         say('Posting cancelled.', 'muted');
-      } else if (key.name === 'left')
-        posting.event = REVIEW_CHOICES[(i + n - 1) % n]!.event;
-      else if (key.name === 'right')
-        posting.event = REVIEW_CHOICES[(i + 1) % n]!.event;
-      else if (byKey) posting.event = byKey.event;
-      else if (key.name === 'return' && !busy) {
+      } else if (next.action === 'post') {
+        const prompt = posting;
+        busy = true; // stops a second `y` re-posting while this is in flight
         try {
-          await publish(posting.event);
+          await publish(prompt.event);
         } catch (e) {
+          posting = afterRefusal(prompt);
           say(
             e instanceof PostError
               ? e.message
               : `Failed: ${(e as Error).message}`,
             'error',
           );
+        } finally {
+          busy = false;
         }
         await persist();
       }
@@ -942,7 +944,9 @@ export async function runTui(store: Store, opts: TuiOptions): Promise<void> {
       else if (key.name === 'm') await editMessage();
       else if (key.name === 'b') await editBody();
       else if (key.name === 'p') {
-        posting = {event: DEFAULT_REVIEW_EVENT};
+        posting = openPostPrompt(
+          parseInline(await readComments(store.dir)).length,
+        );
         say('');
       }
       await refreshBody();

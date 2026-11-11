@@ -25,14 +25,10 @@ bun install
 bun src/cli.ts https://github.com/<owner>/<repo>/pull/<n>
 ```
 
-That is a **dry run**: everything works except the final post, which only saves a file. To really post, add `--post`:
-
-```sh
-bun src/cli.ts https://github.com/<owner>/<repo>/pull/<n> --post
-```
+Nothing is posted until you press `p` on the Review page and then confirm with `y`. There is no dry-run mode and no `--post` flag.
 
 - With no URL, review-tui reviews the open PR for the branch you have checked out in the current git repo. If there is none it exits with a message; pass a URL instead.
-- Your work is saved under `reviews/<repo>-<pr>/` **in the directory you launch from**. Launch the same PR from the same directory to resume where you left off. Dry run first, then relaunch with `--post`, is a good habit: nothing is lost.
+- Your work is saved under `reviews/<repo>-<pr>/` **in the directory you launch from**. Launch the same PR from the same directory to resume where you left off.
 
 ## 3. Start page
 
@@ -111,7 +107,7 @@ Check your comments, add a message to the author, choose how to post, and post.
 | `b` | Edit the whole review body in `$EDITOR`                                |
 | `p` | Post (see below)                                                       |
 
-The page shows **Gates**: `s` and `p` only work when the checklist is complete, the intention has passed and there is at least one comment. It also shows **Mode**: `dry run`, or red `POST (live)` if you launched with `--post`.
+The page shows **Gates**: `s` and `p` only work when the checklist is complete, the intention has passed and there is at least one comment.
 
 The review body is built for you, each part under its own heading:
 
@@ -134,9 +130,9 @@ Press `p` on the Review page. You choose the review type:
 | `r`             | **Request changes** | Marks the PR as needing changes       |
 | `a`             | **Approve**         | Approves the PR                       |
 
-←/→ also move between the three. Enter posts (or, in a dry run, saves `reviews/<repo>-<pr>/payload.json` so you can read exactly what would be sent). Esc cancels. Comment is highlighted when the prompt opens, so pressing Enter straight away never approves or blocks by accident.
+←/→ also move between the three. Enter does not post; it opens a confirmation showing the PR (`owner/repo#number`), the type, the number of inline comments and that it will be posted publicly to GitHub. Press `y` to post for real. Esc or `n` cancels; any other key, Enter included, does nothing. Comment is highlighted when the prompt opens, so pressing Enter and `y` straight away never approves or blocks by accident. Just before sending, the review is saved to `reviews/<repo>-<pr>/payload.json`.
 
-If GitHub refuses, nothing is posted and the prompt stays open with the reason. The usual case is approving or requesting changes on a PR **you opened yourself**: GitHub does not allow it. Press `c`, then Enter, to post it as a Comment. Your comments and message are kept.
+If GitHub refuses, nothing is posted and the prompt goes back to choosing a type, with the reason. The usual case is approving or requesting changes on a PR **you opened yourself**: GitHub does not allow it. Press `c`, Enter, then `y` to post it as a Comment. Your comments and message are kept.
 
 ## With and without VS Code
 
@@ -156,7 +152,7 @@ Install the extension from `vscode-extension/` (steps in its [README](../vscode-
 | The Intention judge says retry              | Read the hint, say what changes and why in your own words |
 | A comment is refused as outside the diff    | Use a file and line from the "Files in diff" list    |
 | Arrow keys move the text cursor, not the page | Press Esc, then ←/→                                |
-| Not sure what will be posted                | Stay in dry run and read `payload.json`              |
+| Not sure what will be posted                | Read the Review body on the Review page; you also get a final `y` check |
 | The model list is empty or fails            | Check that `opencode` works; Enter still starts      |
 
 Full reference: [README](../README.md). Every screen and key: [`ui.md`](ui.md).

@@ -213,7 +213,6 @@ Gated: `s` and `p` need a complete checklist, a passed intention and at least on
 │ ◀ Checklist  Intention  Enquire  Comments  [ Review ] ▶  (5/5)  PR #7    │
 │                                                                          │
 │ Gates: blocked: checklist incomplete, no comments yet                  ① │
-│ Mode: dry run                                                          ② │
 │                                                                          │
 │ Review body (m message · b edit):                                      ③ │
 │ ### Message from the reviewer                                            │
@@ -232,15 +231,27 @@ Gated: `s` and `p` need a complete checklist, a passed intention and at least on
 │ Payload:                                                               ⑤ │
 │ { "event": "COMMENT", "body": "[reviewer + model] …", … }                │
 │                                                                          │
-│ ←/→ pages · Ctrl+C quit · s start review · e edit comments.md · p dry-run│
+│ ←/→ pages · Ctrl+C quit · s start review · e edit comments.md · p post   │
 └──────────────────────────────────────────────────────────────────────────┘
 ```
 
 1. **Gates**: `all passed`, or what is missing.
-2. **Mode**: `dry run` or red `POST (live)` with `--post`.
-3. **Review body**: each part under its own `###` heading: your message to the author (`m`), the intention as a `> ` quote, a two-line summary of the inline comments, then your general comments (empty parts are left out). Posting puts the `[reviewer + model]` prefix on its own first line and ends the body with a `---` rule and a footer with the version. `b` edits the whole body.
-4. **Feedback**: one-shot LLM feedback on accuracy and fairness, after `s`. Pressing `s` again after an edit re-runs it on the current `comments.md`; the heading shows the run number.
-5. **Payload**: the review that `p` built, also saved to `payload.json`. After `p`, a line `Post review as: [Comment] Request changes Approve` shows the type; `←`/`→` or `c`/`r`/`a` choose, Enter confirms, Esc cancels. If GitHub refuses the type the error is shown and the prompt stays open. Approving or requesting changes on your own PR shows "Cannot approve or request changes on a PR you opened yourself. Post as a Comment instead."; press `c` and Enter to post as a Comment.
+2. **Review body**: each part under its own `###` heading: your message to the author (`m`), the intention as a `> ` quote, a two-line summary of the inline comments, then your general comments (empty parts are left out). Posting puts the `[reviewer + model]` prefix on its own first line and ends the body with a `---` rule and a footer with the version. `b` edits the whole body.
+3. **Feedback**: one-shot LLM feedback on accuracy and fairness, after `s`. Pressing `s` again after an edit re-runs it on the current `comments.md`; the heading shows the run number.
+4. **Payload**: the review as sent, shown and saved to `payload.json` when you post.
+
+After `p`, a line `Post review as: [Comment] Request changes Approve` shows the type; `←`/`→` or `c`/`r`/`a` choose, Enter continues, Esc cancels. Enter does **not** post. It opens a confirmation:
+
+```
+Post this review?
+Post to:  acme/widgets#7
+Type:     Request changes
+Inline:   2 inline comments
+This will be posted publicly to GitHub.
+Press y to post for real · Esc or n cancels · Enter does nothing here
+```
+
+Only `y` posts. Esc or `n` cancels; every other key, Enter included, does nothing. If GitHub refuses the review the error is shown and the prompt goes back to the type step. Approving or requesting changes on your own PR shows "Cannot approve or request changes on a PR you opened yourself. Post as a Comment instead."; press `c`, Enter, then `y` to post as a Comment.
 
 | Key | Action                                                          |
 | --- | --------------------------------------------------------------- |
@@ -248,7 +259,7 @@ Gated: `s` and `p` need a complete checklist, a passed intention and at least on
 | `e` | Edit `comments.md` in `$EDITOR` (the TUI pauses, then resumes)  |
 | `m` | Write a message to the author in `$EDITOR`; saved as `review-message.md` |
 | `b` | Edit the review body in `$EDITOR`; saved as `review-body.md`    |
-| `p` | Choose Comment, Request changes or Approve (Comment is the default), then post with `--post`, else dry run |
+| `p` | Choose Comment, Request changes or Approve (Comment is the default), then confirm with `y` to post |
 
 ## Key bindings
 
@@ -262,7 +273,7 @@ Gated: `s` and `p` need a complete checklist, a passed intention and at least on
 | `m`             | Start page                     | Open model picker                           |
 | ↑/↓, Space      | Checklist                      | Move, tick / untick                         |
 | Enter           | Intention, Enquire, Comments   | Submit the input                            |
-| `s`, `e`, `m`, `b`, `p` | Review | Start review, edit comments, write message, edit body, post / dry run |
+| `s`, `e`, `m`, `b`, `p` | Review | Start review, edit comments, write message, edit body, post (with confirmation) |
 
 ## How data flows
 
@@ -298,7 +309,7 @@ flowchart LR
   CK -- "ticks" --> ST
   IN -- "intention, hint" --> ST
   ST -- "gates" --> RV
-  RV -- "review payload (--post only)" --> GH
+  RV -- "review payload (after y)" --> GH
 ```
 
 In words, per pane:
@@ -307,7 +318,7 @@ In words, per pane:
 - **Intention** sends the reviewer's statement, the PR description and the diff to the `review-judge` agent in OpenCode. Only a parsed `pass` or `retry` and a length-capped hint come back, and a hint that copies the PR description is replaced. On `pass`, the reviewer's own text goes into the Intention section of `comments.md`.
 - **Enquire** sends the question, the current VS Code selection and the diff to the read-only `review-enquire` agent. The answer is shown and then dropped. It never reaches `comments.md`, the Review page or GitHub.
 - **Comments** takes the file and lines from the typed text or from the VS Code selection, checks them against the diff, and appends to `comments.md`. No LLM.
-- **Review** checks the gates from `state.json` and `comments.md`, sends `comments.md` to the judge for feedback on `s`, and on `p` builds the review body (your message, quoted intention, two-line summary, general comments, each under a `###` heading; `m` and `b` edit it), ends it with a `---` rule and a footer naming the review-tui version, prefixes every comment with `[$REVIEWER + $MODEL]`, asks which review type to post (Comment by default, Request changes, or Approve), writes `payload.json` and, with `--post`, posts one GitHub review of that type.
+- **Review** checks the gates from `state.json` and `comments.md`, sends `comments.md` to the judge for feedback on `s`, and on `p` builds the review body (your message, quoted intention, two-line summary, general comments, each under a `###` heading; `m` and `b` edit it), ends it with a `---` rule and a footer naming the review-tui version, prefixes every comment with `[$REVIEWER + $MODEL]`, asks which review type to post (Comment by default, Request changes, or Approve), asks for a final `y` showing the PR, type and comment count, then writes `payload.json` and posts one GitHub review of that type.
 
 ### VS Code selection
 

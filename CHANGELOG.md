@@ -6,6 +6,30 @@ uses [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.17.0] - 2026-11-11 (SWE-38)
+
+### Changed
+
+- **Breaking:** the `--post` flag and dry-run mode are gone. `p` on the Review
+  page always posts for real, but only after a confirmation. After choosing the
+  review type, Enter opens a confirmation showing `owner/repo#number`, the
+  review type, the number of inline comments and that the review will be posted
+  publicly to GitHub. Only `y` posts; Esc or `n` cancels; any other key,
+  Enter included, does nothing. The Review page no longer shows a `Mode:` line.
+- If GitHub refuses the review, the prompt goes back to the type step with the
+  error (nothing is lost), as before.
+- `payload.json` is still written, just before the review is sent, for
+  debugging. It is no longer written without posting.
+- `review-tui --post` (or any unknown `--option`) now exits with code 2 and a
+  usage message instead of being ignored.
+- README, `docs/ui.md` and the quick guide describe the new flow.
+
+### Added
+
+- `src/postprompt.ts`: the posting prompt as a small state machine
+  (`choose` then `confirm`), with tests in `test/postprompt.test.ts` for
+  confirm, cancel and refusal.
+
 ## [0.16.1] - 2026-11-11 (SWE-36)
 
 ### Added
