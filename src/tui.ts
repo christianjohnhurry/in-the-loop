@@ -447,10 +447,7 @@ export async function runTui(store: Store, opts: TuiOptions): Promise<void> {
               : 'path:line comment',
           ),
         ],
-        [
-          span('General: ', 'accent', {bold: true}),
-          span(GENERAL_COMMENT_HINT),
-        ],
+        [span('General: ', 'accent', {bold: true}), span(GENERAL_COMMENT_HINT)],
         ideLine(),
         ...candidateLines(),
         [span('Files in diff:', 'muted')],
