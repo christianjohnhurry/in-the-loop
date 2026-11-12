@@ -30,6 +30,63 @@ The AI checks the reviewer's understanding and comments. The reviewer stays the 
 
 Every page, its keys, and how data flows between the panes, VS Code and the LLM: [`docs/ui.md`](docs/ui.md). Where the code lives: [`docs/repo-layout.md`](docs/repo-layout.md).
 
+## Quick start
+
+**1. Prerequisites**
+
+- [Bun](https://bun.sh).
+- `gh`, logged in: `gh auth login`.
+- `opencode`, with a model provider logged in: `opencode auth login`.
+
+**2. Install the CLI**
+
+```sh
+bun install -g github:christianjohnhurry/in-the-loop#v<version>
+```
+
+Use the newest tag on the [releases page](https://github.com/christianjohnhurry/in-the-loop/releases). This puts `review-tui` on your `PATH`.
+
+**3. Install the VS Code extension (optional, recommended)**
+
+Download `review-tui-selection.vsix` from the same release (the file name has no version), then:
+
+```sh
+code --install-extension review-tui-selection.vsix
+```
+
+It tells review-tui which file and lines you have selected, for Enquire and Comments.
+
+**4. Review a PR**
+
+```sh
+gh pr checkout <n>      # a checkout of the PR's repo, at the PR head
+review-tui              # reviews the PR for the branch you are on (or pass a PR URL)
+```
+
+Launch from inside that checkout so Enquire can search the repo. From anywhere else it still works, but only sees your selection and the diff.
+
+**What to expect.** A start page shows the repo, the PR and the model; press Enter. Then five pages, left to right (←/→):
+
+1. **Checklist**: tick the review steps.
+2. **Intention**: say in your own words what the PR does; the model checks it, you do not get the answer.
+3. **Enquire**: ask about the code you selected. Optional.
+4. **Comments**: add `path:line comment` lines and general comments.
+5. **Review**: get model feedback on your comments, then press `p`, choose Comment, Request changes or Approve, and confirm with `y`.
+
+**Nothing is posted until you press `y`.** Your work is saved in `reviews/<repo>-<pr>/` in the directory you launched from; launch the same PR from there to resume.
+
+**What is sent to the model.** review-tui sends text to the model you pick on the start page (or `$MODEL`), through the OpenCode server it starts on your machine, to whichever provider that model belongs to:
+
+| Page | Sent |
+| --- | --- |
+| Intention | The PR diff, the PR description and your intention statement |
+| Enquire | Your question, the selected code and the diff. The agent may also read other files in the repo you launched from (not `.env` files), which are then sent too |
+| Review | The contents of `comments.md`: your inline and general comments |
+
+The review message, review body and checklist are not sent to the model. Nothing goes to GitHub except the review you confirm with `y`. What OpenCode and the provider do with that text (logging, retention, training) is governed by them: see the [OpenCode docs](https://opencode.ai/docs) and your provider's terms. **Check that sending your employer's code to that provider is allowed before using this on work code.**
+
+More: the step-by-step [quick guide](docs/review-tui-quick-guide.md), and every page and key in [`docs/ui.md`](docs/ui.md). The reference sections below cover configuration and files.
+
 ## Requirements
 
 - [Bun](https://bun.sh).

@@ -13,16 +13,12 @@ You will go through five pages, in order: **Checklist → Intention → Enquire 
 - `opencode` on your `PATH` with a model you can use. review-tui lists the models OpenCode has available.
 - Optional: the VS Code extension, so you can select code instead of typing file names and line numbers (see [With and without VS Code](#with-and-without-vs-code)).
 
-From a checkout of this repo, once:
-
-```sh
-bun install
-```
+Install the CLI (and, optionally, the extension) by following the [Quick start](../README.md#quick-start). If you are working from a clone of this repo instead, run `bun install` once and use `bun src/cli.ts` wherever this guide says `review-tui`.
 
 ## 2. Launch
 
 ```sh
-bun src/cli.ts https://github.com/<owner>/<repo>/pull/<n>
+review-tui https://github.com/<owner>/<repo>/pull/<n>
 ```
 
 Nothing is posted until you press `p` on the Review page and then confirm with `y`. There is no dry-run mode and no `--post` flag.
