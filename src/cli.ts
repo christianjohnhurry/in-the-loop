@@ -11,6 +11,7 @@
 import {resolve} from 'node:path';
 import {closeLlm, fetchProviders, setModel} from './llm';
 import {parseModel} from './model';
+import {missingTools} from './preflight';
 import {openStore} from './store';
 import {resolvePrUrl, systemEnv, TargetError} from './target';
 import {runTui} from './tui';
@@ -31,6 +32,11 @@ if (unknown) {
       : `review-tui: unknown option ${unknown}`,
   );
   console.error('usage: review-tui [pr-url]');
+  process.exit(2);
+}
+const missing = missingTools();
+if (missing.length) {
+  for (const m of missing) console.error(`review-tui: ${m}`);
   process.exit(2);
 }
 const urlArg = args[0];
