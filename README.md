@@ -44,14 +44,14 @@ Every page, its keys, and how data flows between the panes, VS Code and the LLM:
 bun install -g github:christianjohnhurry/in-the-loop#v<version>
 ```
 
-Use the latest tag from the [releases page](https://github.com/christianjohnhurry/in-the-loop/releases). This puts `review-tui` on your `PATH`.
+Use the newest tag on the [releases page](https://github.com/christianjohnhurry/in-the-loop/releases). This puts `review-tui` on your `PATH`.
 
 **3. Install the VS Code extension (optional, recommended)**
 
-Download `review-tui-selection-<version>.vsix` from the same release, then:
+Download `review-tui-selection.vsix` from the same release (the file name has no version), then:
 
 ```sh
-code --install-extension review-tui-selection-<version>.vsix
+code --install-extension review-tui-selection.vsix
 ```
 
 It tells review-tui which file and lines you have selected, for Enquire and Comments.

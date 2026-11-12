@@ -15,6 +15,12 @@ uses [Semantic Versioning](https://semver.org/).
   what to expect on each page, and exactly what is sent to the model and to
   which provider. Links the quick guide and `docs/ui.md`.
 
+### Changed
+
+- The quick guide (`docs/review-tui-quick-guide.md`) launches with `review-tui`
+  and points to the Quick start for installing, instead of `bun src/cli.ts`
+  from a clone (which it keeps as the alternative).
+
 ## [0.19.0] - 2026-11-11 (SWE-35)
 
 ### Added
