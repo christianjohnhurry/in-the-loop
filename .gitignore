@@ -33,3 +33,7 @@ report.[0-9]_.[0-9]_.[0-9]_.[0-9]_.json
 # Finder (MacOS) folder config
 .DS_Store
 reviews/
+
+# extension package and the LICENSE copied in to build it
+*.vsix
+vscode-extension/LICENSE

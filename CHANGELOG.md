@@ -6,7 +6,7 @@ uses [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
-## [0.19.1] - 2026-11-11 (SWE-37)
+## [0.19.1] - 2026-11-12 (SWE-37)
 
 ### Added
 
@@ -14,6 +14,32 @@ uses [Semantic Versioning](https://semver.org/).
   a provider), installing the CLI and the VS Code extension, reviewing a PR,
   what to expect on each page, and exactly what is sent to the model and to
   which provider. Links the quick guide and `docs/ui.md`.
+
+## [0.19.0] - 2026-11-11 (SWE-35)
+
+### Added
+
+- One-command install of the CLI: `bun install -g github:christianjohnhurry/in-the-loop#v<version>`
+  puts `review-tui` on `PATH`. `package.json` is no longer `private` and has a
+  `files` list (`src`, `.opencode/agents`, `LICENSE`, `README.md`,
+  `CHANGELOG.md`) so the agents ship with the install.
+- `.github/workflows/release.yml`: pushing a tag `v<version>` (which must match
+  `package.json`) builds the VS Code extension and publishes a GitHub release
+  with `review-tui-selection.vsix` attached and the CHANGELOG section as notes.
+  The file name has no version, so
+  `releases/latest/download/review-tui-selection.vsix` is a stable link. The
+  .vsix is stamped with the release version.
+- Startup check (`src/preflight.ts`): if `gh` or `opencode` is not on `PATH`
+  (`opencode` is not needed with `OPENCODE_URL`), review-tui exits with code 2
+  and an install hint instead of a stack trace.
+
+### Changed
+
+- `vscode-extension` `bun run package` now writes `review-tui-selection.vsix`
+  (was `review-tui-selection-<version>.vsix`), copies the root `LICENSE` into
+  the package, and runs a pinned `@vscode/vsce` through `bun x` (no `npx`).
+- README install section: install from a release tag, VS Code extension
+  download, and a Releases note. Running from a clone still works.
 
 ## [0.18.0] - 2026-11-11 (SWE-39)
 

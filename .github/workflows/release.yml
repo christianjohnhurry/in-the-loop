@@ -1,0 +1,73 @@
+# Release: when a version tag such as v0.19.0 is pushed, build the VS Code
+# extension (.vsix) and publish a GitHub release with it attached.
+#
+# The CLI needs no build: `bun install -g github:christianjohnhurry/in-the-loop#v0.19.0`
+# installs straight from the tag. This workflow exists for the extension, which
+# colleagues install from the release download (see the README).
+#
+# To cut a release:
+#   1. Merge the version bump (package.json and CHANGELOG.md) to main.
+#   2. git tag v<version> && git push origin v<version>
+name: Release
+
+# Only runs for tags starting with "v". Pushes to branches never trigger it.
+on:
+  push:
+    tags: ['v*']
+
+# Creating a release needs write access to the repository's contents. The
+# token GitHub gives each run (GITHUB_TOKEN) gets only what is listed here.
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out the repository
+        uses: actions/checkout@v4
+
+      - name: Install Bun
+        uses: oven-sh/setup-bun@v2
+
+      # The tag (v0.19.0) must match "version" in package.json (0.19.0), so a
+      # release can never be published under the wrong version number.
+      - name: Check the tag matches package.json
+        run: |
+          TAG_VERSION="${GITHUB_REF_NAME#v}"
+          PKG_VERSION="$(bun -e 'console.log((await Bun.file("package.json").json()).version)')"
+          if [ "$TAG_VERSION" != "$PKG_VERSION" ]; then
+            echo "Tag $GITHUB_REF_NAME does not match package.json version $PKG_VERSION" >&2
+            exit 1
+          fi
+          echo "VERSION=$TAG_VERSION" >> "$GITHUB_ENV"
+
+      # The extension has its own package.json and lockfile (see ci.yml).
+      - name: Install extension dependencies
+        run: bun install --frozen-lockfile
+        working-directory: vscode-extension
+
+      # Builds dist/extension.js and packs vscode-extension/review-tui-selection.vsix.
+      # The version given here ends up in the .vsix, so the installed extension
+      # reports the same version as the release; package.json is left untouched.
+      - name: Build the extension
+        run: bun run package "$VERSION" --no-git-tag-version --no-update-package-json
+        working-directory: vscode-extension
+
+      # Creates the release for this tag and attaches the .vsix. The file name
+      # has no version in it, so the "latest" download URL never changes:
+      #   https://github.com/<owner>/<repo>/releases/latest/download/review-tui-selection.vsix
+      # The notes are the CHANGELOG section for this version.
+      - name: Create the GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          awk -v v="$VERSION" '
+            $0 ~ "^## \\[" v "\\]" { on = 1; next }
+            on && /^## \[/ { exit }
+            on { print }
+          ' CHANGELOG.md > notes.md
+          gh release create "$GITHUB_REF_NAME" \
+            vscode-extension/review-tui-selection.vsix \
+            --title "$GITHUB_REF_NAME" \
+            --notes-file notes.md
